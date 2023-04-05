@@ -36,7 +36,6 @@ begin
     + '  PLANNER_CLI_REDIRECT_PORT' + sLineBreak
     + '  PLANNER_CLI_SCOPE' + sLineBreak
     + '' + sLineBreak
-    + 'Bye. :)' + sLineBreak
   );
 end;
 

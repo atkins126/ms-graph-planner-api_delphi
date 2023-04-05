@@ -68,13 +68,16 @@ type
     
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
     destructor Destroy; override;
+    property id: string read FId;
+
+    
   end;
 
 implementation
 
 { TMsPlanner }
 
-constructor TMsPlanner.Create(Authenticator: TMsAuthenticator);
+constructor TMsPlanner.Create(Authenticator: TMsAuthenticator; id: string);
 begin
   inherited Create(Authenticator);
 end;

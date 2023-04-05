@@ -15,17 +15,21 @@ uses
 type
   TMsPlanner = class(TMsAdapter)
   private
+    FId: string;
   protected
   public
-    constructor Create(Authenticator: TMsAuthenticator); reintroduce;
+    constructor Create(Authenticator: TMsAuthenticator; id: string); reintroduce;
     destructor Destroy; override;
+    property id: string read FId;
+
+    
   end;
 
 implementation
 
 { TMsPlanner }
 
-constructor TMsPlanner.Create(Authenticator: TMsAuthenticator);
+constructor TMsPlanner.Create(Authenticator: TMsAuthenticator; id: string);
 begin
   inherited Create(Authenticator);
 end;

@@ -13,6 +13,7 @@ uses
   System.Generics.Collections,
   key_press_helper,
   MicrosoftPlanner,
+  listing,
   MicrosoftApiAuthenticator;
 
 type
@@ -20,8 +21,10 @@ type
   private
     Fauthenticator: TMsAuthenticator;
     FVerbose: boolean;
-
+    FOptions: TDictionary<string, string>;
     FPlanner: TMsPlanner;
+
+    function getFields: TDictionary<string, string>;
   protected
   public
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
@@ -29,10 +32,19 @@ type
 
     function getAllPlanners: TArray<TMsPlannerGroup>;
 
+    procedure list();
+
+    procedure createItem();
+    procedure updateItem();
+    procedure deleteItem();
+
     property Planner: TMsPlanner read FPlanner;
 
-    class function New(TENANT_ID:string; CLINET_ID: string; REDIRECT_URI: string; REDIRECT_PORT: integer; SCOPE: TArray<string>; Verbose: boolean): THelpers; static;
+    class function New(TENANT_ID:string; CLINET_ID: string; REDIRECT_URI: string; REDIRECT_PORT: integer; SCOPE: TArray<string>; Options: TDictionary<string, string>): THelpers; static;
   end;
+
+var
+  REQUESTERROR: Boolean;
 
 implementation
 
@@ -86,8 +98,17 @@ begin
   end;
 end;
 
+procedure THelpers.list;
+var
+  AListing: TListing;
+begin
+  Alisting := Tlisting.Create(self.FOptions, self.FPlanner);
+  WriteLn(Alisting.Text);
+  Alisting.Free;
+end;
 
-class function THelpers.New(TENANT_ID:string; CLINET_ID: string; REDIRECT_URI: string; REDIRECT_PORT: integer; SCOPE: TArray<string>; Verbose: boolean): THelpers;
+
+class function THelpers.New(TENANT_ID:string; CLINET_ID: string; REDIRECT_URI: string; REDIRECT_PORT: integer; SCOPE: TArray<string>; Options: TDictionary<string, string>): THelpers;
 var
   AAuthenticator: TMsAuthenticator;
 begin
@@ -107,6 +128,7 @@ begin
     end,
     procedure(Error: TMsError)
     begin
+      REQUESTERROR := True;
       Writeln(Format(  // A premade error message, do whatever you want here
         ''
         + '%sStatus: . . . . . %d : %s'
@@ -133,7 +155,151 @@ begin
   );
   Result := THelpers.Create(AAuthenticator);
   Result.Fauthenticator := AAuthenticator;
-  Result.FVerbose := Verbose;
+  Result.FOptions := Options;
+  Result.FVerbose := Options.ContainsKey('Verbose');
+end;
+
+procedure THelpers.createItem;
+var
+  AFields: TDictionary<string, string>;
+  ANewBucket: TMsPlannerBucket;
+  ANewTask: TMsPlannerTask;
+
+  AListing: TListing;
+begin
+  if not self.FOptions.ContainsKey('Fields') then
+  begin
+    if self.FOptions.ContainsKey('Bucket') then
+    begin
+
+      write('Name: ');
+      ReadLn(ANewBucket.Name);
+      if ANewBucket.Name = '' then begin WriteLn('Name field is required'); exit; end;
+      
+      write('OrderHint ['''']: ');
+      ReadLn(ANewBucket.OrderHint);
+
+      write('PlannerId: ');
+      ReadLn(ANewBucket.PlanId);
+      if ANewBucket.PlanId = '' then begin WriteLn('PlannerId field is required'); exit; end;
+
+      self.FPlanner.CreateBucket(ANewBucket);
+
+      if not REQUESTERROR then
+      begin
+        AListing := Tlisting.Create(self.FOptions, self.FPlanner);
+        AListing.writeBucket(ANewBucket);
+        WriteLn(Alisting.Text);
+        AListing.Free;
+      end;
+    end
+    else if self.FOptions.ContainsKey('Task') then
+    begin
+      Write('Title: ');
+      ReadLn(ANewTask.Title);
+      if ANewtask.Title = '' then begin WriteLn('Title is required'); exit; end;
+      
+      write('PercentComplete [''0'']: ');
+      ReadLn(ANewTask.PercentComplete);
+      if ANewTask.PercentComplete = '' then ANewTask.PercentComplete := '0';
+
+      Write('DueDate ['''']: ');
+      ReadLn(ANewTask.DueDateTime);
+
+      Write('BucketId: ');
+      ReadLn(ANewTask.BucketId);
+      if ANewtask.BucketId = '' then begin WriteLn('BucketId is required'); exit; end;
+
+      self.FPlanner.CreateTask(ANewTask);
+
+      if not REQUESTERROR then
+      begin
+        AListing := Tlisting.Create(self.FOptions, self.FPlanner);
+        AListing.writeTask(ANewTask);
+        WriteLn(Alisting.Text);
+        AListing.Free;
+      end;
+    end
+    else
+    begin
+      WriteLn('You must specify a Bucket or Task to create');
+    end;
+  end
+  else
+  begin
+    if self.FOptions.ContainsKey('Bucket') then
+    begin
+      AFields := self.getFields;
+      
+      if not AFields.TryGetValue('Name', ANewBucket.Name) then begin WriteLn('Name field is required'); exit; end
+      else if not AFields.TryGetValue('OrderHint', ANewBucket.OrderHint) then begin end
+      else if not AFields.TryGetValue('PlannerId', ANewBucket.PlanId) then begin WriteLn('PlannerId field is required'); exit; end;
+      self.FPlanner.CreateBucket(ANewBucket);
+      AFields.Free;
+
+      if not REQUESTERROR then
+      begin
+        AListing := Tlisting.Create(self.FOptions, self.FPlanner);
+        AListing.writeBucket(ANewBucket);
+        WriteLn(Alisting.Text);
+        AListing.Free;
+      end;
+    end
+    else if self.FOptions.ContainsKey('Task') then
+    begin
+      AFields := self.getFields;
+      if not AFields.TryGetValue('Name', ANewTask.Title) then begin WriteLn('Name field is required'); exit; end
+      else if not AFields.TryGetValue('PercentComplete', ANewTask.PercentComplete) then begin ANewTask.PercentComplete := '0'; end
+      else if not AFields.TryGetValue('DueDate', ANewTask.DueDateTime) then begin end
+      else if not AFields.TryGetValue('BucketId', ANewTask.BucketId) then begin WriteLn('BucketId field is required'); exit; end;
+      self.FPlanner.CreateTask(ANewTask);
+      AFields.Free;
+
+      if not REQUESTERROR then
+      begin
+        AListing := Tlisting.Create(self.FOptions, self.FPlanner);
+        AListing.writeTask(ANewTask);
+        WriteLn(Alisting.Text);
+        AListing.Free;
+      end;
+    end
+    else
+    begin
+      WriteLn('You must specify a Bucket or Task to create');
+    end;
+  end;
+end;
+
+procedure THelpers.updateItem;
+begin
+
+end;
+
+procedure THelpers.deleteItem;
+begin
+
+end;
+
+function THelpers.getFields: TDictionary<string, string>;
+var
+  s: string;
+  arr: TArray<string>;
+  arr2: TArray<string>;
+begin
+  Result := nil;
+  if self.FOptions.TryGetValue('Fields', s) then
+  begin
+    arr := s.Split([',']);
+    Result := TDictionary<string, string>.Create;
+    for s in arr do
+    begin
+      arr2 := s.Split(['=']);
+      if Length(arr2) = 2 then
+        Result.AddOrSetValue(arr2[0], arr2[1])
+      else
+        Result.AddOrSetValue(arr2[0], '');
+    end;
+  end;
 end;
 
 end.

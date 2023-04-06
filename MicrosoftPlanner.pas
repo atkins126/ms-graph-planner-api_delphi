@@ -18,6 +18,7 @@ type
     Id: string;
     Title: string;
     OrderHint: string;
+    BucketId: string;
     PlanId: string;
     CreatedDateTime: string;
     CompletedDateTime: string;
@@ -65,10 +66,18 @@ type
     procedure GetBucket(var Bucket: TMsPlannerBucket);
     procedure GetTasks(var Bucket: TMsPlannerBucket);
     procedure GetTask(var Task: TMsPlannerTask);
+
+    procedure CreateBucket(var Bucket: TMsPlannerBucket);
+    procedure CreateTask(var Task: TMsPlannerTask);
+
+    procedure UpdateBucket(var Bucket: TMsPlannerBucket);
+    procedure UpdateTask(var Task: TMsPlannerTask);
+
+    procedure DeleteBucket(var Bucket: TMsPlannerBucket);
+    procedure DeleteTask(var Task: TMsPlannerTask);
     
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
     destructor Destroy; override;
-    property id: string read FId;
 
     
   end;
@@ -78,6 +87,7 @@ implementation
 { TMsPlanner }
 
 constructor TMsPlanner.Create(Authenticator: TMsAuthenticator; id: string);
+constructor TMsPlanner.Create(Authenticator: TMsAuthenticator);
 begin
   inherited Create(Authenticator);
 end;
@@ -384,6 +394,7 @@ begin
           AJVal.TryGetValue<string>('id', Task.Id);
           AJVal.TryGetValue<string>('title', Task.Title);
           AJVal.TryGetValue<string>('orderHint', Task.OrderHint);
+
           AJVal.TryGetValue<string>('planId', Task.PlanId);
           AJVal.TryGetValue<string>('createdDateTime', Task.CreatedDateTime);
           AJVal.TryGetValue<string>('completedDateTime', Task.CompletedDateTime);
@@ -425,6 +436,7 @@ begin
       AJ.TryGetValue<string>('id', Task.Id);
       AJ.TryGetValue<string>('title', Task.Title);
       AJ.TryGetValue<string>('orderHint', Task.OrderHint);
+      AJ.TryGetValue<string>('bucketId', Task.BucketId);
       AJ.TryGetValue<string>('planId', Task.PlanId);
       AJ.TryGetValue<string>('createdDateTime', Task.CreatedDateTime);
       AJ.TryGetValue<string>('completedDateTime', Task.CompletedDateTime);
@@ -440,5 +452,237 @@ begin
   end;
 end;
 
+procedure TMsPlanner.CreateTask(var Task: TMsPlannerTask);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+  APayload: TStringStream;
+
+  // task data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+begin
+  AJObj := TJSONObject.Create;
+  AJObj.AddPair('title', Task.Title);
+  AJObj.AddPair('orderHint', Task.OrderHint);
+  AJObj.AddPair('bucketId', Task.BucketId);
+  AJObj.AddPair('createdDateTime', Task.CreatedDateTime);
+  AJObj.AddPair('completedDateTime', Task.CompletedDateTime);
+  AJObj.AddPair('percentComplete', Task.PercentComplete);
+  AJObj.AddPair('dueDateTime', Task.DueDateTime);
+  AJObj.AddPair('hasDescription', Task.HasDescription);
+  AJObj.AddPair('previewType', Task.PreviewType);
+
+  AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/tasks'));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  APayload := TStringStream.Create(AJObj.ToJSON);
+  AReq.SourceStream := APayload;
+  ARes := self.Http.Execute(AReq);
+  APayload.Free;
+
+  if ARes.StatusCode = 201 then
+  begin
+    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      AJ.TryGetValue<string>('id', Task.Id);
+      AJ.TryGetValue<string>('title', Task.Title);
+      AJ.TryGetValue<string>('orderHint', Task.OrderHint);
+      AJ.TryGetValue<string>('planId', Task.PlanId);
+      AJ.TryGetValue<string>('createdDateTime', Task.CreatedDateTime);
+      AJ.TryGetValue<string>('completedDateTime', Task.CompletedDateTime);
+      AJ.TryGetValue<string>('percentComplete', Task.PercentComplete);
+      AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
+      AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
+      AJ.TryGetValue<string>('previewType', Task.PreviewType);
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.UpdateTask(var Task: TMsPlannerTask);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+  APayload: TStringStream;
+
+  // task data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+begin
+  AJObj := TJSONObject.Create;
+  AJObj.AddPair('title', Task.Title);
+  AJObj.AddPair('orderHint', Task.OrderHint);
+  AJObj.AddPair('bucketId', Task.BucketId);
+  AJObj.AddPair('percentComplete', Task.PercentComplete);
+  AJObj.AddPair('dueDateTime', Task.DueDateTime);
+
+  AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/tasks/' + Task.Id));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  APayload := TStringStream.Create(AJObj.ToJSON);
+  AReq.SourceStream := APayload;
+  ARes := self.Http.Execute(AReq);
+  APayload.Free;
+
+  if ARes.StatusCode = 200 then
+  begin
+    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      AJ.TryGetValue<string>('id', Task.Id);
+      AJ.TryGetValue<string>('title', Task.Title);
+      AJ.TryGetValue<string>('orderHint', Task.OrderHint);
+      AJ.TryGetValue<string>('bucketId', Task.BucketId);
+      AJ.TryGetValue<string>('planId', Task.PlanId);
+      AJ.TryGetValue<string>('createdDateTime', Task.CreatedDateTime);
+      AJ.TryGetValue<string>('completedDateTime', Task.CompletedDateTime);
+      AJ.TryGetValue<string>('percentComplete', Task.PercentComplete);
+      AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
+      AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
+      AJ.TryGetValue<string>('previewType', Task.PreviewType);
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.DeleteTask(var Task: TMsPlannerTask);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+begin
+  AReq := self.Http.GetRequest(sHTTPMethodDelete, self.buildUrl('planner/tasks/' + Task.Id));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  ARes := self.Http.Execute(AReq);
+
+  if ARes.StatusCode = 204 then
+  begin
+    Task.Id := '';
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.CreateBucket(var Bucket: TMsPlannerBucket);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+  APayload: TStringStream;
+
+  // bucket data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+begin
+  AJObj := TJSONObject.Create;
+  AJObj.AddPair('name', Bucket.Name);
+  AJObj.AddPair('planId', Bucket.PlanId);
+  AJObj.AddPair('orderHint', Bucket.OrderHint);
+
+  AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/buckets'));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  APayload := TStringStream.Create(AJObj.ToJSON);
+  AReq.SourceStream := APayload;
+  ARes := self.Http.Execute(AReq);
+  APayload.Free;
+
+  if ARes.StatusCode = 201 then
+  begin
+    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      AJ.TryGetValue<string>('id', Bucket.Id);
+      AJ.TryGetValue<string>('name', Bucket.Name);
+      AJ.TryGetValue<string>('planId', Bucket.PlanId);
+      AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.UpdateBucket(var Bucket: TMsPlannerBucket);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+  APayload: TStringStream;
+
+  // bucket data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+begin
+  AJObj := TJSONObject.Create;
+  AJObj.AddPair('name', Bucket.Name);
+  AJObj.AddPair('planId', Bucket.PlanId);
+  AJObj.AddPair('orderHint', Bucket.OrderHint);
+
+  AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/buckets/' + Bucket.Id));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  APayload := TStringStream.Create(AJObj.ToJSON);
+  AReq.SourceStream := APayload;
+  ARes := self.Http.Execute(AReq);
+  APayload.Free;
+
+  if ARes.StatusCode = 200 then
+  begin
+    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      AJ.TryGetValue<string>('id', Bucket.Id);
+      AJ.TryGetValue<string>('name', Bucket.Name);
+      AJ.TryGetValue<string>('planId', Bucket.PlanId);
+      AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.DeleteBucket(var Bucket: TMsPlannerBucket);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+begin
+  AReq := self.Http.GetRequest(sHTTPMethodDelete, self.buildUrl('planner/buckets/' + Bucket.Id));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  ARes := self.Http.Execute(AReq);
+
+  if ARes.StatusCode = 204 then
+  begin
+    Bucket.Id := '';
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
 
 end.

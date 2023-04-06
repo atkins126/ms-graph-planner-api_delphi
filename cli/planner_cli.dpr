@@ -20,29 +20,28 @@ begin
     + 'Usage: planner_cli [command] [option]' + sLineBreak
     + '' + sLineBreak
     + 'Commands:' + sLineBreak
-    + '  planner' + sLineBreak
     + '  list' + sLineBreak
+    + '  create' + sLineBreak
+    + '  update' + sLineBreak
+    + '  delete' + sLineBreak
     + '  help' + sLineBreak
     + '' + sLineBreak
-    + 'Options:' + sLineBreak
-    + '  -i, --GetInfo <- get info about the specified item' + sLineBreak
-    + '  -c, --Create  <- create a new item' + sLineBreak
-    + '  -u, --Update  <- update an existing item' + sLineBreak
-    + '  -d, --Delete  <- delete an existing item' + sLineBreak
-    + sLineBreak
     + 'Items:' + sLineBreak
-    + '  -g, --Group [<Group id>] <- used to specify a group' + sLineBreak
-    + '  -p, --Planner [<Board id>] <- used to specify a planner' + sLineBreak
-    + '  -b, --Bucket [<Bucket id>] <- used to specify a bucket' + sLineBreak
-    + '  -t, --Task [<Task id>] <- used to specify a task' + sLineBreak
-    + sLineBreak
-    + 'Other Options:' + sLineBreak
+    + '  -g, --Group [<Group id>]' + sLineBreak
+    + '  -p, --Planner [<Board id>]' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
+    + '' + sLineBreak
+    + 'Options:' + sLineBreak
+    + '  -q, --Quiet' + sLineBreak
+    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+    + '' + sLineBreak
+    + 'Authentication:' + sLineBreak
     + '  --TenantID "<your tenant id>"' + sLineBreak
     + '  --ClientID "<your client id>"' + sLineBreak
     + '  --RedirectURI "<your redirect uri>"' + sLineBreak
     + '  --RedirectPort "<your redirect port>"' + sLineBreak
     + '  --Scope "<scope>,<scope>,<scope>"' + sLineBreak
-    + '  -q, --Quiet' + sLineBreak
     + '' + sLineBreak
     + 'Environement Variables:' + sLineBreak
     + '  PLANNER_CLI_TENANT_ID' + sLineBreak
@@ -61,15 +60,7 @@ var
 
 function resolveAlias(param: string): string;
 begin
-  if IndexText(param, ['i', 'GetInfo']) <> -1 then
-    Result := 'GetInfo'
-  else if IndexText(param, ['c', 'Create']) <> -1 then
-    Result := 'Create'
-  else if IndexText(param, ['u', 'Update']) <> -1 then
-    Result := 'Update'
-  else if IndexText(param, ['d', 'Delete']) <> -1 then
-    Result := 'Delete'
-  else if IndexText(param, ['g', 'Group']) <> -1 then
+  if IndexText(param, ['g', 'Group']) <> -1 then
     Result := 'Group'
   else if IndexText(param, ['p', 'Planner']) <> -1 then
     Result := 'Planner'
@@ -169,37 +160,6 @@ var
 
   HELPERS: THelpers;
 
-  listing: TListing;
-
-  //Groups: TList<THelperGroup>;
-
-// function getId(param: string): string;
-// var
-//   group: TMsPlannerGroup;
-//   planner: TMsPlannerPlanner;
-//   ParamValue: string;
-// begin
-//   Result := '';
-//   if param = '' then
-//     Exit;
-//   
-//   if Options.TryGetValue(param, ParamValue) then
-//   begin
-//     // check if param is id
-//     for group in Groups do
-//     begin
-//       for planner in group.Planners do
-//       begin
-//         if ((planner.ID = param) or (planner.Title = param)) and (IndexText(param, ['p', 'Planner']) <> -1) then
-//         begin
-//           Result := planner.ID;
-//           Exit;
-//         end;
-//       end;
-//     end;
-//   end;
-// end;
-
 begin
   if ParamCount = 0 then
   begin
@@ -277,7 +237,7 @@ begin
     Exit;
   end;
 
-  HELPERS := THelpers.New(TENANT_ID, CLINET_ID, REDIRECT_URI, REDIRECT_PORT, SCOPE, Verbose);
+  HELPERS := THelpers.New(TENANT_ID, CLINET_ID, REDIRECT_URI, REDIRECT_PORT, SCOPE, Options);
 
   // get groups
   // Groups := TList<THelperGroup>.Create(HELPERS.getAllPlanners());s
@@ -285,9 +245,19 @@ begin
   // PARSE COMMANDS
   if Command = 'list' then
   begin
-    listing := Tlisting.Create(Options, HELPERS.Planner);
-    WriteLn(listing.Text);
-    listing.Free;
+    HELPERS.list();
+  end
+  else if Command = 'create' then
+  begin
+    HELPERS.createItem();
+  end
+  else if Command = 'delete' then
+  begin
+    HELPERS.deleteItem();
+  end
+  else if Command = 'update' then
+  begin
+    HELPERS.updateItem();
   end
   else
   begin

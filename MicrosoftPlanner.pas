@@ -71,12 +71,16 @@ type
     property id: string read FId;
 
     
+    property id: string read FId;
+
+    
   end;
 
 implementation
 
 { TMsPlanner }
 
+constructor TMsPlanner.Create(Authenticator: TMsAuthenticator; id: string);
 constructor TMsPlanner.Create(Authenticator: TMsAuthenticator; id: string);
 begin
   inherited Create(Authenticator);

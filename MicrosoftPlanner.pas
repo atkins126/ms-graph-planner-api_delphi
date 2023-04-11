@@ -589,6 +589,9 @@ var
   // bucket data
   AJ: TJSONValue;
   AJObj: TJSONObject;
+
+  // @debug
+  // header: TNetHeader;
 begin
   AJObj := TJSONObject.Create;
   AJObj.AddPair('name', Bucket.Name);
@@ -596,6 +599,13 @@ begin
   AJObj.AddPair('orderHint', Bucket.OrderHint);
 
   AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/buckets'));
+
+  // @debug
+  // for header in AReq.Headers do
+  // begin
+  //   Writeln(header.Name + ': ' + header.Value);
+  // end;
+
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);

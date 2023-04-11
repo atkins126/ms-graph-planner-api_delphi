@@ -127,19 +127,31 @@ begin
       ResponseInfo.ContentStream := TStringStream.Create('<title>Login Succes</title>This tab can be closed now :)');  // YOUR SUCCESS PAGE, do whatever you want here
     end,
     procedure(Error: TMsError)
+    var
+      req_headers: string;
+      res_headers: string;
+      headers: string;
+      header: TNetHeader;
     begin
       REQUESTERROR := True;
+
+      for header in Error.HTTPreq_Header do req_headers := Format('%s"%s": "%s", ', [req_headers, header.Name, header.Value]);
+      for header in Error.HTTPres_Header do res_headers := Format('%s"%s": "%s", ', [res_headers, header.Name, header.Value]);
+      headers := Format('{"ReqHeaders": {%s}, "ResHeaders": {%s}}', [req_headers.TrimRight([',', ' ']), res_headers.TrimRight([',', ' '])]);
+
       Writeln(Format(  // A premade error message, do whatever you want here
         ''
         + '%sStatus: . . . . . %d : %s'
         + '%sErrorName:  . . . %s'
         + '%sErrorDescription: %s'
+        + '%sHeader: . . . . . %s'
         + '%sUrl:  . . . . . . %s %s'
         + '%sData: . . . . . . %s',
         [
           sLineBreak, error.HTTPStatusCode, error.HTTPStatusText,
           sLineBreak, error.HTTPerror_name,
           sLineBreak, error.HTTPerror_description,
+          sLineBreak, headers,
           sLineBreak, error.HTTPMethod, error.HTTPurl,
           sLineBreak, error.HTTPerror_data
         ]

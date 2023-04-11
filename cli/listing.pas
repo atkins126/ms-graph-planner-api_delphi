@@ -221,7 +221,7 @@ begin
       inc(self.FIndentation);
       self.FPlannerLib.GetPlanners(AGroup);
       AGroups[AIGroup] := AGroup;
-      for AIPlan := 0 to Length(AGroup.Planners) do
+      for AIPlan := 0 to Length(AGroup.Planners) -1 do
       begin
         APlan := AGroup.Planners[AIPlan];
         self.writePlanner(APlan);

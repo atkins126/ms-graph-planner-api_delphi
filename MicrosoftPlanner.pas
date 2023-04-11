@@ -451,6 +451,8 @@ end;
 
 procedure TMsPlanner.CreateTask(var Task: TMsPlannerTask);
 var
+  bucket: TMsPlannerBucket;
+
   // requests
   AReq: IHttpRequest;
   ARes: IHTTPResponse;
@@ -461,15 +463,23 @@ var
   AJObj: TJSONObject;
 begin
   AJObj := TJSONObject.Create;
+
+  if task.PlanId = '' then
+  begin
+    bucket.Id := Task.BucketId;
+    self.GetBucket(bucket);
+    Task.PlanId := bucket.PlanId;
+  end;
+
   AJObj.AddPair('title', Task.Title);
-  AJObj.AddPair('orderHint', Task.OrderHint);
+  if Task.OrderHint <> '' then
+    AJObj.AddPair('orderHint', Task.OrderHint);
   AJObj.AddPair('bucketId', Task.BucketId);
-  AJObj.AddPair('createdDateTime', Task.CreatedDateTime);
-  AJObj.AddPair('completedDateTime', Task.CompletedDateTime);
-  AJObj.AddPair('percentComplete', Task.PercentComplete);
-  AJObj.AddPair('dueDateTime', Task.DueDateTime);
-  AJObj.AddPair('hasDescription', Task.HasDescription);
-  AJObj.AddPair('previewType', Task.PreviewType);
+  AJObj.AddPair('planId', Task.PlanId);
+  if Task.PercentComplete <> '' then
+    AJObj.AddPair('percentComplete', Task.PercentComplete);
+  if Task.DueDateTime <> '' then
+    AJObj.AddPair('dueDateTime', Task.DueDateTime);
 
   AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/tasks'));
   AReq.AddHeader('Content-Type', 'application/json');
@@ -590,7 +600,8 @@ begin
   AJObj := TJSONObject.Create;
   AJObj.AddPair('name', Bucket.Name);
   AJObj.AddPair('planId', Bucket.PlanId);
-  AJObj.AddPair('orderHint', Bucket.OrderHint);
+  if Bucket.OrderHint <> '' then
+    AJObj.AddPair('orderHint', Bucket.OrderHint);
 
   AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/buckets'));
   AReq.AddHeader('Content-Type', 'application/json');

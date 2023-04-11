@@ -33,8 +33,8 @@ begin
     + '  -t, --Task [<Task id>]' + sLineBreak
     + '' + sLineBreak
     + 'Options:' + sLineBreak
-    + '  -q, --Quiet' + sLineBreak
     + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+    + '  -h, --Help' + sLineBreak
     + '' + sLineBreak
     + 'Authentication:' + sLineBreak
     + '  --TenantID "<your tenant id>"' + sLineBreak
@@ -68,8 +68,8 @@ begin
     Result := 'Bucket'
   else if IndexText(param, ['t', 'Task']) <> -1 then
     Result := 'Task'
-  else if IndexText(param, ['q', 'Quiet']) <> -1 then
-    Result := 'Quiet'
+  else if IndexText(param, ['h', 'Help', 'help', '?']) <> -1 then
+    Result := 'Help'
   else
     Result := param;
 end;
@@ -147,6 +147,81 @@ begin
   end;
 end;
 
+procedure printListHelp();
+begin
+  WriteLn('' + sLineBreak
+    + 'Usage: planner_cli list [option]' + sLineBreak
+    + '' + sLineBreak
+    + 'Items:' + sLineBreak
+    + '  -g, --Group [<Group id>]' + sLineBreak
+    + '  -p, --Planner [<Board id>]' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
+    + '' + sLineBreak
+    + 'If an id is provided, the item with' + sLineBreak
+    + 'the correspondingid will be listed. ' + sLineBreak
+    + 'If an item is specified without an' + sLineBreak
+    + 'id, all items of that type will be' + sLineBreak
+    + 'listed.' + sLineBreak
+    + '' + sLineBreak
+  );
+end;
+
+procedure printCreateHelp();
+begin
+  WriteLn('' + sLineBreak
+    + 'Usage: planner_cli create [option]' + sLineBreak
+    + '' + sLineBreak
+    + 'Items:' + sLineBreak
+    + '  -b, --Bucket' + sLineBreak
+    + '  -t, --Task' + sLineBreak
+    + '' + sLineBreak
+    + 'Options:' + sLineBreak
+    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+    + '' + sLineBreak
+    + 'Creates a new item of the specified type.' + sLineBreak
+    + 'The fields option can be used to set' + sLineBreak
+    + 'the values of the fields of the new item.' + sLineBreak
+    + 'If the field option isn''t used, an inter-' + sLineBreak
+    + 'active prompt will be used to set the' + sLineBreak
+    + 'values of the fields.' + sLineBreak
+  );
+end;
+
+procedure printUpdateHelp();
+begin
+  WriteLn('' + sLineBreak
+    + 'Usage: planner_cli update [option]' + sLineBreak
+    + '' + sLineBreak
+    + 'Items:' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
+    + '' + sLineBreak
+    + 'Options:' + sLineBreak
+    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+    + '' + sLineBreak
+    + 'Updates the specified item.' + sLineBreak
+    + 'The fields option can be used to set' + sLineBreak
+    + 'the values of the fields of the item.' + sLineBreak
+    + 'If the field option isn''t used, an inter-' + sLineBreak
+    + 'active prompt will be used to set the' + sLineBreak
+    + 'values of the fields.' + sLineBreak
+  );
+end;
+
+procedure printDeleteHelp();
+begin
+  WriteLn('' + sLineBreak
+    + 'Usage: planner_cli delete [option]' + sLineBreak
+    + '' + sLineBreak
+    + 'Items:' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
+    + '' + sLineBreak
+    + 'Deletes the specified item.' + sLineBreak
+  );
+end;
+
 var
   Verbose: Boolean;
   Command: String;
@@ -179,6 +254,23 @@ begin
   // get options
   Options := getOptions();
 
+  // check for help
+  if Options.ContainsKey('h') or Options.ContainsKey('Help') then
+  begin
+    if Command = 'list' then
+      printListHelp()
+    else if Command = 'create' then
+      printCreateHelp()
+    else if Command = 'update' then
+      printUpdateHelp()
+    else if Command = 'delete' then
+      printDeleteHelp()
+    else
+      printHelp();
+    Options.Free;
+    Exit;
+  end;
+
   // check for verbose
   Verbose := not (Options.ContainsKey('q') or Options.ContainsKey('Quiet'));
 
@@ -190,6 +282,7 @@ begin
   else
   begin
     writeln('Tenant ID not set. Use --TenantID option or set PLANNER_CLI_TENANT_ID environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -201,6 +294,7 @@ begin
   else
   begin
     writeln('Client ID not set. Use --ClientID option or set PLANNER_CLI_CLIENT_ID environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -212,6 +306,7 @@ begin
   else
   begin
     writeln('Redirect URI not set. Use --RedirectURI option or set PLANNER_CLI_REDIRECT_URI environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -223,6 +318,7 @@ begin
   else
   begin
     writeln('Redirect Port not set. Use --RedirectPort option or set PLANNER_CLI_REDIRECT_PORT environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -234,6 +330,7 @@ begin
   else
   begin
     writeln('Scope not set. Use --Scope option or set PLANNER_CLI_SCOPE environment variable.');
+    Options.Free;
     Exit;
   end;
 

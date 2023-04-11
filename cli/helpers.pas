@@ -190,6 +190,7 @@ begin
       
       write('OrderHint ['''']: ');
       ReadLn(ANewBucket.OrderHint);
+      // if ANewBucket.OrderHint = '' then ANewBucket.OrderHint := ' !';
 
       write('PlannerId: ');
       ReadLn(ANewBucket.PlanId);
@@ -201,7 +202,7 @@ begin
       begin
         AListing := Tlisting.Create(self.FOptions, self.FPlanner);
         AListing.writeBucket(ANewBucket);
-        WriteLn(Alisting.Text);
+        WriteLn(sLineBreak, Alisting.Text);
         AListing.Free;
       end;
     end
@@ -210,6 +211,10 @@ begin
       Write('Title: ');
       ReadLn(ANewTask.Title);
       if ANewtask.Title = '' then begin WriteLn('Title is required'); exit; end;
+
+      Write('OrderHint ['''']: ');
+      ReadLn(ANewTask.OrderHint);
+      // if ANewTask.OrderHint = '' then ANewTask.OrderHint := ' !';
       
       write('PercentComplete [''0'']: ');
       ReadLn(ANewTask.PercentComplete);
@@ -222,13 +227,16 @@ begin
       ReadLn(ANewTask.BucketId);
       if ANewtask.BucketId = '' then begin WriteLn('BucketId is required'); exit; end;
 
+      Write('PlanId['''']: ');
+      ReadLn(ANewTask.PlanId);
+
       self.FPlanner.CreateTask(ANewTask);
 
       if not REQUESTERROR then
       begin
         AListing := Tlisting.Create(self.FOptions, self.FPlanner);
         AListing.writeTask(ANewTask);
-        WriteLn(Alisting.Text);
+        WriteLn(sLineBreak, Alisting.Text);
         AListing.Free;
       end;
     end
@@ -243,9 +251,9 @@ begin
     begin
       AFields := self.getFields;
       
-      if not AFields.TryGetValue('Name', ANewBucket.Name) then begin WriteLn('Name field is required'); exit; end
-      else if not AFields.TryGetValue('OrderHint', ANewBucket.OrderHint) then begin end
-      else if not AFields.TryGetValue('PlannerId', ANewBucket.PlanId) then begin WriteLn('PlannerId field is required'); exit; end;
+      if not AFields.TryGetValue('name', ANewBucket.Name) then begin WriteLn('Name field is required'); exit; end;
+      if not AFields.TryGetValue('orderhint', ANewBucket.OrderHint) then begin end;
+      if not AFields.TryGetValue('planid', ANewBucket.PlanId) then begin WriteLn('PlannerId field is required'); exit; end;
       self.FPlanner.CreateBucket(ANewBucket);
       AFields.Free;
 
@@ -260,10 +268,12 @@ begin
     else if self.FOptions.ContainsKey('Task') then
     begin
       AFields := self.getFields;
-      if not AFields.TryGetValue('Name', ANewTask.Title) then begin WriteLn('Name field is required'); exit; end
-      else if not AFields.TryGetValue('PercentComplete', ANewTask.PercentComplete) then begin ANewTask.PercentComplete := '0'; end
-      else if not AFields.TryGetValue('DueDate', ANewTask.DueDateTime) then begin end
-      else if not AFields.TryGetValue('BucketId', ANewTask.BucketId) then begin WriteLn('BucketId field is required'); exit; end;
+      if not AFields.TryGetValue('name', ANewTask.Title) then begin WriteLn('Name field is required'); exit; end;
+      if not AFields.TryGetValue('percentcomplete', ANewTask.PercentComplete) then begin ANewTask.PercentComplete := '0'; end;
+      if not AFields.TryGetValue('duedate', ANewTask.DueDateTime) then begin end;
+      if not AFields.TryGetValue('bucketid', ANewTask.BucketId) then begin WriteLn('BucketId field is required'); exit; end;
+      if not AFields.TryGetValue('planid', ANewTask.PlanId) then begin end;
+      if not AFields.TryGetValue('orderhint', ANewTask.OrderHint) then begin end;
       self.FPlanner.CreateTask(ANewTask);
       AFields.Free;
 
@@ -307,9 +317,9 @@ begin
     begin
       arr2 := s.Split(['=']);
       if Length(arr2) = 2 then
-        Result.AddOrSetValue(arr2[0], arr2[1])
+        Result.AddOrSetValue(arr2[0].ToLower, arr2[1])
       else
-        Result.AddOrSetValue(arr2[0], '');
+        Result.AddOrSetValue(arr2[0].ToLower, '');
     end;
   end;
 end;

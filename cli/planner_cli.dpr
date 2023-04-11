@@ -20,36 +20,41 @@ begin
     + 'Usage: planner_cli [command] [option]' + sLineBreak
     + '' + sLineBreak
     + 'Commands:' + sLineBreak
-    + '  planner' + sLineBreak
     + '  list' + sLineBreak
+    + '  create' + sLineBreak
+    + '  update' + sLineBreak
+    + '  delete' + sLineBreak
     + '  help' + sLineBreak
     + '' + sLineBreak
-    + 'Options:' + sLineBreak
-    + '  -i, --GetInfo <- get info about the specified item' + sLineBreak
-    + '  -c, --Create  <- create a new item' + sLineBreak
-    + '  -u, --Update  <- update an existing item' + sLineBreak
-    + '  -d, --Delete  <- delete an existing item' + sLineBreak
-    + sLineBreak
     + 'Items:' + sLineBreak
-    + '  -g, --Group [<Group id>] <- used to specify a group' + sLineBreak
-    + '  -p, --Planner [<Board id>] <- used to specify a planner' + sLineBreak
-    + '  -b, --Bucket [<Bucket id>] <- used to specify a bucket' + sLineBreak
-    + '  -t, --Task [<Task id>] <- used to specify a task' + sLineBreak
-    + sLineBreak
-    + 'Other Options:' + sLineBreak
-    + '  --TenantID "<your tenant id>"' + sLineBreak
-    + '  --ClientID "<your client id>"' + sLineBreak
-    + '  --RedirectURI "<your redirect uri>"' + sLineBreak
-    + '  --RedirectPort "<your redirect port>"' + sLineBreak
-    + '  --Scope "<scope>,<scope>,<scope>"' + sLineBreak
-    + '  -q, --Quiet' + sLineBreak
+    + '  -g, --Group [<Group id>]' + sLineBreak
+    + '  -p, --Planner [<Board id>]' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
     + '' + sLineBreak
-    + 'Environement Variables:' + sLineBreak
-    + '  PLANNER_CLI_TENANT_ID' + sLineBreak
-    + '  PLANNER_CLI_CLIENT_ID' + sLineBreak
-    + '  PLANNER_CLI_REDIRECT_URI' + sLineBreak
-    + '  PLANNER_CLI_REDIRECT_PORT' + sLineBreak
-    + '  PLANNER_CLI_SCOPE' + sLineBreak
+    + 'Options:' + sLineBreak
+    + '  -h, --Help' + sLineBreak
+    + '  -q, --Quiet' + sLineBreak
+    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+    + '  --Debug' + sLineBreak
+    + '' + sLineBreak
+    + 'Authentication:' + sLineBreak
+    + '  Can be provided as command line parameters or as environment variables.' + sLineBreak
+    + '  Command line parameters have precedence.' + sLineBreak
+    + '' + sLineBreak
+    + '  Command line parameters:' + sLineBreak
+    + '    --TenantID "<your tenant id>"' + sLineBreak
+    + '    --ClientID "<your client id>"' + sLineBreak
+    + '    --RedirectURI "<your redirect uri>"' + sLineBreak
+    + '    --RedirectPort "<your redirect port>"' + sLineBreak
+    + '    --Scope "<scope>,<scope>,<scope>"' + sLineBreak
+    + '' + sLineBreak
+    + '  Environement Variables:   (should be self explanatory)' + sLineBreak
+    + '    PLANNER_CLI_TENANT_ID' + sLineBreak
+    + '    PLANNER_CLI_CLIENT_ID' + sLineBreak
+    + '    PLANNER_CLI_REDIRECT_URI' + sLineBreak
+    + '    PLANNER_CLI_REDIRECT_PORT' + sLineBreak
+    + '    PLANNER_CLI_SCOPE' + sLineBreak
     + '' + sLineBreak
   );
 end;
@@ -61,15 +66,7 @@ var
 
 function resolveAlias(param: string): string;
 begin
-  if IndexText(param, ['i', 'GetInfo']) <> -1 then
-    Result := 'GetInfo'
-  else if IndexText(param, ['c', 'Create']) <> -1 then
-    Result := 'Create'
-  else if IndexText(param, ['u', 'Update']) <> -1 then
-    Result := 'Update'
-  else if IndexText(param, ['d', 'Delete']) <> -1 then
-    Result := 'Delete'
-  else if IndexText(param, ['g', 'Group']) <> -1 then
+  if IndexText(param, ['g', 'Group']) <> -1 then
     Result := 'Group'
   else if IndexText(param, ['p', 'Planner']) <> -1 then
     Result := 'Planner'
@@ -79,17 +76,19 @@ begin
     Result := 'Task'
   else if IndexText(param, ['q', 'Quiet']) <> -1 then
     Result := 'Quiet'
+  else if IndexText(param, ['h', 'Help', 'help', '?']) <> -1 then
+    Result := 'Help'
   else
     Result := param;
 end;
 
 begin
   Result := TDictionary<string, string>.Create();
-  if ParamCount > 1 then
+  if ParamCount >= 1 then
   begin
     //iterate over all params
-    i := 0;
-    while i < ParamCount do
+    i := 1;
+    while i <= ParamCount do
     begin
       s := ParamStr(i);
       if s.StartsWith('-') then
@@ -156,6 +155,39 @@ begin
   end;
 end;
 
+procedure printListHelp();
+begin
+  WriteLn('' + sLineBreak
+    + 'Usage: planner_cli list [option]' + sLineBreak
+    + '' + sLineBreak
+    + 'Items:' + sLineBreak
+    + '  -g, --Group [<Group id>]' + sLineBreak
+    + '  -p, --Planner [<Board id>]' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
+    + '' + sLineBreak
+    + 'If an id is provided, the item with' + sLineBreak
+    + 'the correspondingid will be listed. ' + sLineBreak
+    + 'If an item is specified without an' + sLineBreak
+    + 'id, all items of that type will be' + sLineBreak
+    + 'listed.' + sLineBreak
+    + '' + sLineBreak
+  );
+end;
+
+procedure printDeleteHelp();
+begin
+  WriteLn('' + sLineBreak
+    + 'Usage: planner_cli delete [option]' + sLineBreak
+    + '' + sLineBreak
+    + 'Items:' + sLineBreak
+    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+    + '  -t, --Task [<Task id>]' + sLineBreak
+    + '' + sLineBreak
+    + 'Deletes the specified item.' + sLineBreak
+  );
+end;
+
 var
   Verbose: Boolean;
   Command: String;
@@ -169,36 +201,89 @@ var
 
   HELPERS: THelpers;
 
-  listing: TListing;
+  procedure printUpdateHelp();
+begin
+  if Options.ContainsKey('Bucket') then
+    WriteLn('' + sLineBreak
+      + 'Bucket Fields:' + sLineBreak
+      + '  Name,' + sLineBreak
+      + '  OrderHint' + sLineBreak
+    )
+  else if Options.ContainsKey('Task') then
+    WriteLn('' + sLineBreak
+      + 'Task Fields:' + sLineBreak
+      + '  Title,' + sLineBreak
+      + '  OrderHint,' + sLineBreak
+      + '  DueDateTime,' + sLineBreak
+      + '  PercentComplete,' + sLineBreak
+      + '  BucketId' + sLineBreak
+    )
+  else
+    WriteLn('' + sLineBreak
+      + 'Usage: planner_cli update [option]' + sLineBreak
+      + '' + sLineBreak
+      + 'Items:' + sLineBreak
+      + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+      + '  -t, --Task [<Task id>]' + sLineBreak
+      + '' + sLineBreak
+      + 'Options:' + sLineBreak
+      + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+      + '' + sLineBreak
+      + 'Updates the specified item.' + sLineBreak
+      + 'The fields option can be used to set' + sLineBreak
+      + 'the values of the fields of the item.' + sLineBreak
+      + 'If the field option isn''t used, an inter-' + sLineBreak
+      + 'active prompt will be used to set the' + sLineBreak
+      + 'values of the fields.' + sLineBreak
+      + '' + sLineBreak
+      + 'Get field names:' + sLineBreak
+      + '  planner_cli list update -h -b' + sLineBreak
+      + '  planner_cli list update -h -t' + sLineBreak
+    );
+end;
 
-  //Groups: TList<THelperGroup>;
-
-// function getId(param: string): string;
-// var
-//   group: TMsPlannerGroup;
-//   planner: TMsPlannerPlanner;
-//   ParamValue: string;
-// begin
-//   Result := '';
-//   if param = '' then
-//     Exit;
-//   
-//   if Options.TryGetValue(param, ParamValue) then
-//   begin
-//     // check if param is id
-//     for group in Groups do
-//     begin
-//       for planner in group.Planners do
-//       begin
-//         if ((planner.ID = param) or (planner.Title = param)) and (IndexText(param, ['p', 'Planner']) <> -1) then
-//         begin
-//           Result := planner.ID;
-//           Exit;
-//         end;
-//       end;
-//     end;
-//   end;
-// end;
+procedure printCreateHelp();
+begin
+  if Options.ContainsKey('Bucket') then
+    WriteLn('' + sLineBreak
+      + 'Bucket Fields:' + sLineBreak
+      + '  Name,' + sLineBreak
+      + '  OrderHint' + sLineBreak
+      + '  PlanId' + sLineBreak
+    )
+  else if Options.ContainsKey('Task') then
+    WriteLn('' + sLineBreak
+      + 'Task Fields:' + sLineBreak
+      + '  Title,' + sLineBreak
+      + '  OrderHint,' + sLineBreak
+      + '  DueDateTime,' + sLineBreak
+      + '  PercentComplete,' + sLineBreak
+      + '  BucketId,' + sLineBreak
+      + '  PlanId - must not be specified' + sLineBreak
+    )
+  else
+    WriteLn('' + sLineBreak
+      + 'Usage: planner_cli create [option]' + sLineBreak
+      + '' + sLineBreak
+      + 'Items:' + sLineBreak
+      + '  -b, --Bucket' + sLineBreak
+      + '  -t, --Task' + sLineBreak
+      + '' + sLineBreak
+      + 'Options:' + sLineBreak
+      + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+      + '' + sLineBreak
+      + 'Creates a new item of the specified type.' + sLineBreak
+      + 'The fields option can be used to set' + sLineBreak
+      + 'the values of the fields of the new item.' + sLineBreak
+      + 'If the field option isn''t used, an inter-' + sLineBreak
+      + 'active prompt will be used to set the' + sLineBreak
+      + 'values of the fields.' + sLineBreak
+      + '' + sLineBreak
+      + 'Get field names:' + sLineBreak
+      + '  planner_cli list create -h -b' + sLineBreak
+      + '  planner_cli list create -h -t' + sLineBreak
+    );
+end;
 
 begin
   if ParamCount = 0 then
@@ -219,8 +304,25 @@ begin
   // get options
   Options := getOptions();
 
+  // check for help
+  if Options.ContainsKey('Help') then
+  begin
+    if Command = 'list' then
+      printListHelp()
+    else if Command = 'create' then
+      printCreateHelp()
+    else if Command = 'update' then
+      printUpdateHelp()
+    else if Command = 'delete' then
+      printDeleteHelp()
+    else
+      printHelp();
+    Options.Free;
+    Exit;
+  end;
+
   // check for verbose
-  Verbose := not (Options.ContainsKey('q') or Options.ContainsKey('Quiet'));
+  Verbose := not (Options.ContainsKey('Quiet'));
 
   // get tenant id
   if Options.ContainsKey('TenantID') then
@@ -230,6 +332,7 @@ begin
   else
   begin
     writeln('Tenant ID not set. Use --TenantID option or set PLANNER_CLI_TENANT_ID environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -241,6 +344,7 @@ begin
   else
   begin
     writeln('Client ID not set. Use --ClientID option or set PLANNER_CLI_CLIENT_ID environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -252,6 +356,7 @@ begin
   else
   begin
     writeln('Redirect URI not set. Use --RedirectURI option or set PLANNER_CLI_REDIRECT_URI environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -263,6 +368,7 @@ begin
   else
   begin
     writeln('Redirect Port not set. Use --RedirectPort option or set PLANNER_CLI_REDIRECT_PORT environment variable.');
+    Options.Free;
     Exit;
   end;
 
@@ -274,10 +380,11 @@ begin
   else
   begin
     writeln('Scope not set. Use --Scope option or set PLANNER_CLI_SCOPE environment variable.');
+    Options.Free;
     Exit;
   end;
 
-  HELPERS := THelpers.New(TENANT_ID, CLINET_ID, REDIRECT_URI, REDIRECT_PORT, SCOPE, Verbose);
+  HELPERS := THelpers.New(TENANT_ID, CLINET_ID, REDIRECT_URI, REDIRECT_PORT, SCOPE, Options, Verbose);
 
   // get groups
   // Groups := TList<THelperGroup>.Create(HELPERS.getAllPlanners());s
@@ -285,9 +392,19 @@ begin
   // PARSE COMMANDS
   if Command = 'list' then
   begin
-    listing := Tlisting.Create(Options, HELPERS.Planner);
-    WriteLn(listing.Text);
-    listing.Free;
+    HELPERS.list();
+  end
+  else if Command = 'create' then
+  begin
+    HELPERS.createItem();
+  end
+  else if Command = 'delete' then
+  begin
+    HELPERS.deleteItem();
+  end
+  else if Command = 'update' then
+  begin
+    HELPERS.updateItem();
   end
   else
   begin

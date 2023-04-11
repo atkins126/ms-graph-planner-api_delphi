@@ -4,7 +4,6 @@ interface
 
 uses
   System.Generics.Collections,
-  helpers,
   MicrosoftPlanner;
 
 type
@@ -18,19 +17,23 @@ type
     procedure msg(s: string);
 
   
-    procedure writePlanner(p: TMsPlannerPlanner);
-    procedure writeBucket(b: TMsPlannerBucket);
-    procedure writeTask(t: TMsPlannerTask);
-    procedure writeGroup(g: TMsPlannerGroup);
+    function doWithId: Boolean;
+    
 
     function getText: string;
   public
     constructor Create(Options: TDictionary<string, string>; planner: TMsPlanner);
     destructor Destroy; override;
 
-    function doWithId: Boolean;
+    procedure doListing();
 
     property Text: string read getText;
+
+    procedure writePlanner(p: TMsPlannerPlanner);
+    procedure writeBucket(b: TMsPlannerBucket);
+    procedure writeTask(t: TMsPlannerTask);
+    procedure writeGroup(g: TMsPlannerGroup);
+    property indentation: Integer read FIndentation write FIndentation;
 
   end;
 
@@ -42,121 +45,10 @@ uses
 { Tlisting }
 
 constructor Tlisting.Create(Options: TDictionary<string, string>; planner: TMsPlanner);
-var
-  AGroups: TArray<TMsPlannerGroup>;
-  AGroup: TMsPlannerGroup;
-  AIGroup: Integer;
-  APlan: TMsPlannerPlanner;
-  AIPlan: Integer;
-  ABucket: TMsPlannerBucket;
-  AIBucket: Integer;
-  ATask: TMsPlannerTask;
-  AITask: Integer;
 begin
   inherited Create;
   FOptions := Options;
   FPlannerLib := planner;
-
-  if self.doWithId then exit;
-
-  AGroups := self.FPlannerLib.GetGroups;
-  
-  if self.FOptions.ContainsKey('Task') then
-  begin
-    for AIGroup := 0 to Length(AGroups) -1 do
-    begin
-      AGroup := AGroups[AIGroup];
-      self.writeGroup(AGroup);
-      inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
-      AGroups[AIGroup] := AGroup;
-      for AIPlan := 0 to Length(AGroup.Planners) -1 do
-      begin
-        APlan := AGroup.Planners[AIPlan];
-        self.writePlanner(APlan);
-        inc(self.FIndentation);
-        self.FPlannerLib.GetBuckets(APlan);
-        AGroup.Planners[AIPlan] := APlan;
-        for AIBucket := 0 to Length(APlan.Buckets) -1 do
-        begin
-          ABucket := APlan.Buckets[AIBucket];
-          self.writeBucket(ABucket);
-          inc(self.FIndentation);
-          self.FPlannerLib.GetTasks(ABucket);
-          APlan.Buckets[AIBucket] := ABucket;
-          for ATask in ABucket.Tasks do self.writeTask(ATask);
-          dec(self.FIndentation);
-        end;
-        dec(self.FIndentation);
-      end;
-      dec(self.FIndentation);
-    end;
-  end
-  else if self.FOptions.ContainsKey('Bucket') then
-  begin
-    for AIGroup := 0 to Length(AGroups) -1 do
-    begin
-      AGroup := AGroups[AIGroup];
-      self.writeGroup(AGroup);
-      inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
-      AGroups[AIGroup] := AGroup;
-      for AIPlan := 0 to Length(AGroup.Planners) do
-      begin
-        APlan := AGroup.Planners[AIPlan];
-        self.writePlanner(APlan);
-        inc(self.FIndentation);
-        self.FPlannerLib.GetBuckets(APlan);
-        AGroup.Planners[AIPlan] := APlan;
-        for ABucket in APlan.Buckets do
-        begin
-          self.writeBucket(ABucket);
-        end;
-        dec(self.FIndentation);
-      end;
-      dec(self.FIndentation);
-    end;
-  end
-  else if self.FOptions.ContainsKey('Planner') then
-  begin
-    for AIGroup := 0 to Length(AGroups) -1 do
-    begin
-      AGroup := AGroups[AIGroup];
-      self.writeGroup(AGroup);
-      inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
-      AGroups[AIGroup] := AGroup;
-      for APlan in AGroup.Planners do
-      begin
-        self.writePlanner(APlan);
-      end;
-      dec(self.FIndentation);
-    end;
-  end
-  else if self.FOptions.ContainsKey('Group') then
-  begin
-    for AIGroup := 0 to Length(AGroups) -1 do
-    begin
-      AGroup := AGroups[AIGroup];
-      self.writeGroup(AGroup);
-    end;
-  end
-  else
-  begin
-    for AIGroup := 0 to Length(AGroups) -1 do
-    begin
-      AGroup := AGroups[AIGroup];
-      self.writeGroup(AGroup);
-      inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
-      AGroups[AIGroup] := AGroup;
-      for APlan in AGroup.Planners do
-      begin
-        self.writePlanner(APlan);
-      end;
-      dec(self.FIndentation);
-    end;
-  end;
 end;
 
 function Tlisting.doWithId: Boolean;
@@ -273,6 +165,120 @@ begin
   inherited;
 end;
 
+procedure Tlisting.doListing;
+var
+  AGroups: TArray<TMsPlannerGroup>;
+  AGroup: TMsPlannerGroup;
+  AIGroup: Integer;
+  APlan: TMsPlannerPlanner;
+  AIPlan: Integer;
+  ABucket: TMsPlannerBucket;
+  AIBucket: Integer;
+  ATask: TMsPlannerTask;
+ // AITask: Integer;
+begin
+  if self.doWithId then exit;
+
+  AGroups := self.FPlannerLib.GetGroups;
+  
+  if self.FOptions.ContainsKey('Task') then
+  begin
+    for AIGroup := 0 to Length(AGroups) -1 do
+    begin
+      AGroup := AGroups[AIGroup];
+      self.writeGroup(AGroup);
+      inc(self.FIndentation);
+      self.FPlannerLib.GetPlanners(AGroup);
+      AGroups[AIGroup] := AGroup;
+      for AIPlan := 0 to Length(AGroup.Planners) -1 do
+      begin
+        APlan := AGroup.Planners[AIPlan];
+        self.writePlanner(APlan);
+        inc(self.FIndentation);
+        self.FPlannerLib.GetBuckets(APlan);
+        AGroup.Planners[AIPlan] := APlan;
+        for AIBucket := 0 to Length(APlan.Buckets) -1 do
+        begin
+          ABucket := APlan.Buckets[AIBucket];
+          self.writeBucket(ABucket);
+          inc(self.FIndentation);
+          self.FPlannerLib.GetTasks(ABucket);
+          APlan.Buckets[AIBucket] := ABucket;
+          for ATask in ABucket.Tasks do self.writeTask(ATask);
+          dec(self.FIndentation);
+        end;
+        dec(self.FIndentation);
+      end;
+      dec(self.FIndentation);
+    end;
+  end
+  else if self.FOptions.ContainsKey('Bucket') then
+  begin
+    for AIGroup := 0 to Length(AGroups) -1 do
+    begin
+      AGroup := AGroups[AIGroup];
+      self.writeGroup(AGroup);
+      inc(self.FIndentation);
+      self.FPlannerLib.GetPlanners(AGroup);
+      AGroups[AIGroup] := AGroup;
+      for AIPlan := 0 to Length(AGroup.Planners) -1 do
+      begin
+        APlan := AGroup.Planners[AIPlan];
+        self.writePlanner(APlan);
+        inc(self.FIndentation);
+        self.FPlannerLib.GetBuckets(APlan);
+        AGroup.Planners[AIPlan] := APlan;
+        for ABucket in APlan.Buckets do
+        begin
+          self.writeBucket(ABucket);
+        end;
+        dec(self.FIndentation);
+      end;
+      dec(self.FIndentation);
+    end;
+  end
+  else if self.FOptions.ContainsKey('Planner') then
+  begin
+    for AIGroup := 0 to Length(AGroups) -1 do
+    begin
+      AGroup := AGroups[AIGroup];
+      self.writeGroup(AGroup);
+      inc(self.FIndentation);
+      self.FPlannerLib.GetPlanners(AGroup);
+      AGroups[AIGroup] := AGroup;
+      for APlan in AGroup.Planners do
+      begin
+        self.writePlanner(APlan);
+      end;
+      dec(self.FIndentation);
+    end;
+  end
+  else if self.FOptions.ContainsKey('Group') then
+  begin
+    for AIGroup := 0 to Length(AGroups) -1 do
+    begin
+      AGroup := AGroups[AIGroup];
+      self.writeGroup(AGroup);
+    end;
+  end
+  else
+  begin
+    for AIGroup := 0 to Length(AGroups) -1 do
+    begin
+      AGroup := AGroups[AIGroup];
+      self.writeGroup(AGroup);
+      inc(self.FIndentation);
+      self.FPlannerLib.GetPlanners(AGroup);
+      AGroups[AIGroup] := AGroup;
+      for APlan in AGroup.Planners do
+      begin
+        self.writePlanner(APlan);
+      end;
+      dec(self.FIndentation);
+    end;
+  end;
+end;
+
 procedure Tlisting.msg(s: string);
 begin
   FMsg := FMsG + [string.Create(' ', self.FIndentation*2) + s];
@@ -292,6 +298,7 @@ begin
   self.msg('  Id: ' + b.Id);
   self.msg('  Order Hint: ' + b.OrderHint);
   self.msg('  Plan Id: ' + b.PlanId);
+  self.msg('  ETag: ' + b.ETag);
 end;
 
 procedure Tlisting.writeTask(t: TMsPlannerTask);
@@ -306,6 +313,7 @@ begin
   self.msg('  Plan Id: ' + t.PlanId);
   self.msg('  Has Description: ' + t.HasDescription);
   self.msg('  Preview Type: ' + t.PreviewType);
+  self.msg('  ETag: ' + t.ETag);
 end;
 
 procedure Tlisting.writeGroup(g: TMsPlannerGroup);

@@ -19,7 +19,6 @@ type
     Title: string;
     OrderHint: string;
     BucketId: string;
-    BucketId: string;
     PlanId: string;
     CreatedDateTime: string;
     CompletedDateTime: string;
@@ -76,29 +75,15 @@ type
 
     procedure DeleteBucket(var Bucket: TMsPlannerBucket);
     procedure DeleteTask(var Task: TMsPlannerTask);
-
-    procedure CreateBucket(var Bucket: TMsPlannerBucket);
-    procedure CreateTask(var Task: TMsPlannerTask);
-
-    procedure UpdateBucket(var Bucket: TMsPlannerBucket);
-    procedure UpdateTask(var Task: TMsPlannerTask);
-
-    procedure DeleteBucket(var Bucket: TMsPlannerBucket);
-    procedure DeleteTask(var Task: TMsPlannerTask);
     
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
     destructor Destroy; override;
-
-    
-
-    
   end;
 
 implementation
 
 { TMsPlanner }
 
-constructor TMsPlanner.Create(Authenticator: TMsAuthenticator; id: string);
 constructor TMsPlanner.Create(Authenticator: TMsAuthenticator);
 begin
   inherited Create(Authenticator);

@@ -19,6 +19,7 @@ type
     Title: string;
     OrderHint: string;
     BucketId: string;
+    BucketId: string;
     PlanId: string;
     CreatedDateTime: string;
     CompletedDateTime: string;
@@ -75,9 +76,20 @@ type
 
     procedure DeleteBucket(var Bucket: TMsPlannerBucket);
     procedure DeleteTask(var Task: TMsPlannerTask);
+
+    procedure CreateBucket(var Bucket: TMsPlannerBucket);
+    procedure CreateTask(var Task: TMsPlannerTask);
+
+    procedure UpdateBucket(var Bucket: TMsPlannerBucket);
+    procedure UpdateTask(var Task: TMsPlannerTask);
+
+    procedure DeleteBucket(var Bucket: TMsPlannerBucket);
+    procedure DeleteTask(var Task: TMsPlannerTask);
     
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
     destructor Destroy; override;
+
+    
 
     
   end;
@@ -589,9 +601,6 @@ var
   // bucket data
   AJ: TJSONValue;
   AJObj: TJSONObject;
-
-  // @debug
-  // header: TNetHeader;
 begin
   AJObj := TJSONObject.Create;
   AJObj.AddPair('name', Bucket.Name);
@@ -599,13 +608,6 @@ begin
   AJObj.AddPair('orderHint', Bucket.OrderHint);
 
   AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/buckets'));
-
-  // @debug
-  // for header in AReq.Headers do
-  // begin
-  //   Writeln(header.Name + ': ' + header.Value);
-  // end;
-
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);

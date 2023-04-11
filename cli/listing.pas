@@ -298,6 +298,7 @@ begin
   self.msg('  Id: ' + b.Id);
   self.msg('  Order Hint: ' + b.OrderHint);
   self.msg('  Plan Id: ' + b.PlanId);
+  self.msg('  ETag: ' + b.ETag);
 end;
 
 procedure Tlisting.writeTask(t: TMsPlannerTask);
@@ -312,6 +313,7 @@ begin
   self.msg('  Plan Id: ' + t.PlanId);
   self.msg('  Has Description: ' + t.HasDescription);
   self.msg('  Preview Type: ' + t.PreviewType);
+  self.msg('  ETag: ' + t.ETag);
 end;
 
 procedure Tlisting.writeGroup(g: TMsPlannerGroup);

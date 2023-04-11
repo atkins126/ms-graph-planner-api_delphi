@@ -26,6 +26,7 @@ type
     DueDateTime: string;
     HasDescription: string;
     PreviewType: string;
+    ETag: string;
   end;
 
   TMsPlannerBucket = record
@@ -34,6 +35,7 @@ type
     OrderHint: string;
     PlanId: string;
     Tasks: TArray<TMsPlannerTask>;
+    ETag: string;
   end;
 
   TMsPlannerPlanner = record
@@ -56,6 +58,8 @@ type
   private
     procedure handleError(AReq: IHttpRequest; ARes: IHTTPResponse);
     function buildUrl(s: string): string;
+
+    function GetValue(AJ: TJsonValue; AKey: string; var AValue: string): boolean;
   protected
   public
     function GetGroups: TArray<TMsPlannerGroup>;
@@ -93,6 +97,26 @@ destructor TMsPlanner.Destroy;
 begin
 
   inherited Destroy;
+end;
+
+function TMsPlanner.GetValue(AJ: TJsonValue; AKey: string; var AValue: string): boolean;
+var
+  AI: Integer;
+begin
+  Result := False;
+  AValue := '';
+  if AKey <> '' then
+  begin
+    for AI := 0 to TJSONObject(AJ).Count - 1 do
+    begin
+      if TJSONObject(AJ).Pairs[AI].JsonString.Value = AKey then
+      begin
+        AValue := TJSONObject(AJ).Pairs[AI].JsonValue.Value;
+        Result := True;
+        Break;
+      end;
+    end;
+  end;
 end;
 
 procedure TMsPlanner.handleError(AReq: IHttpRequest; ARes: IHTTPResponse);
@@ -315,6 +339,7 @@ begin
           AJVal.TryGetValue<string>('name', Bucket.Name);
           AJVal.TryGetValue<string>('orderHint', Bucket.OrderHint);
           AJVal.TryGetValue<string>('planId', Bucket.PlanId);
+          self.GetValue(AJVal, '@odata.etag', Bucket.ETag);
           Planner.Buckets[i] := Bucket;
         end;
       end;
@@ -350,6 +375,7 @@ begin
       AJ.TryGetValue<string>('name', Bucket.Name);
       AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
       AJ.TryGetValue<string>('planId', Bucket.PlanId);
+      self.GetValue(AJ, '@odata.etag', Bucket.ETag);
     end;
   end
   else
@@ -399,6 +425,7 @@ begin
           AJVal.TryGetValue<string>('dueDateTime', Task.DueDateTime);
           AJVal.TryGetValue<string>('hasDescription', Task.HasDescription);
           AJVal.TryGetValue<string>('previewType', Task.PreviewType);
+          self.GetValue(AJVal, '@odata.etag', Task.ETag);
           Bucket.Tasks[i] := Task;
         end;
       end;
@@ -441,6 +468,7 @@ begin
       AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
+      self.GetValue(AJ, '@odata.etag', Task.ETag);
     end;
   end
   else
@@ -505,6 +533,7 @@ begin
       AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
+      self.GetValue(AJ, '@odata.etag', Task.ETag);
     end;
   end
   else
@@ -515,6 +544,7 @@ end;
 
 procedure TMsPlanner.UpdateTask(var Task: TMsPlannerTask);
 var
+  OldTask: TMsPlannerTask;
   // requests
   AReq: IHttpRequest;
   ARes: IHTTPResponse;
@@ -524,17 +554,31 @@ var
   AJ: TJSONValue;
   AJObj: TJSONObject;
 begin
+  if Task.ETag = '' then
+  begin
+    OldTask.Id := Task.Id;
+    self.GetTask(OldTask);
+    Task.ETag := OldTask.ETag;
+  end;
+
   AJObj := TJSONObject.Create;
-  AJObj.AddPair('title', Task.Title);
-  AJObj.AddPair('orderHint', Task.OrderHint);
-  AJObj.AddPair('bucketId', Task.BucketId);
-  AJObj.AddPair('percentComplete', Task.PercentComplete);
-  AJObj.AddPair('dueDateTime', Task.DueDateTime);
+  if Task.Title <> '' then
+    AJObj.AddPair('title', Task.Title);
+  if Task.OrderHint <> '' then
+    AJObj.AddPair('orderHint', Task.OrderHint);
+  if Task.BucketId <> '' then
+    AJObj.AddPair('bucketId', Task.BucketId);
+  if Task.PercentComplete <> '' then
+    AJObj.AddPair('percentComplete', Task.PercentComplete);
+  if Task.DueDateTime <> '' then
+    AJObj.AddPair('dueDateTime', Task.DueDateTime);
 
   AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/tasks/' + Task.Id));
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
+  AReq.AddHeader('Prefer', 'return=representation');
+  AReq.AddHeader('If-Match', Task.ETag);
   APayload := TStringStream.Create(AJObj.ToJSON);
   AReq.SourceStream := APayload;
   ARes := self.Http.Execute(AReq);
@@ -556,6 +600,7 @@ begin
       AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
+      self.GetValue(AJ, '@odata.etag', Task.ETag);
     end;
   end
   else
@@ -570,10 +615,16 @@ var
   AReq: IHttpRequest;
   ARes: IHTTPResponse;
 begin
+  if Task.ETag = '' then
+  begin
+    self.GetTask(Task);
+  end;
+
   AReq := self.Http.GetRequest(sHTTPMethodDelete, self.buildUrl('planner/tasks/' + Task.Id));
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
+  AReq.AddHeader('If-Match', Task.ETag);
   ARes := self.Http.Execute(AReq);
 
   if ARes.StatusCode = 204 then
@@ -621,6 +672,7 @@ begin
       AJ.TryGetValue<string>('name', Bucket.Name);
       AJ.TryGetValue<string>('planId', Bucket.PlanId);
       AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
+      self.GetValue(AJ, '@odata.etag', Bucket.ETag);
     end;
   end
   else
@@ -631,6 +683,7 @@ end;
 
 procedure TMsPlanner.UpdateBucket(var Bucket: TMsPlannerBucket);
 var
+  OldBucket: TMsPlannerBucket;
   // requests
   AReq: IHttpRequest;
   ARes: IHTTPResponse;
@@ -640,15 +693,25 @@ var
   AJ: TJSONValue;
   AJObj: TJSONObject;
 begin
+  if Bucket.ETag = '' then
+  begin
+    OldBucket.id := Bucket.Id;
+    self.GetBucket(OldBucket);
+    Bucket.ETag := OldBucket.ETag;
+  end;
+
   AJObj := TJSONObject.Create;
-  AJObj.AddPair('name', Bucket.Name);
-  AJObj.AddPair('planId', Bucket.PlanId);
-  AJObj.AddPair('orderHint', Bucket.OrderHint);
+  if Bucket.Name <> '' then
+    AJObj.AddPair('name', Bucket.Name);
+  if Bucket.OrderHint <> '' then
+    AJObj.AddPair('orderHint', Bucket.OrderHint);
 
   AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/buckets/' + Bucket.Id));
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
+  AReq.AddHeader('If-Match', Bucket.ETag);
+  AReq.AddHeader('Prefer', 'return=representation');
   APayload := TStringStream.Create(AJObj.ToJSON);
   AReq.SourceStream := APayload;
   ARes := self.Http.Execute(AReq);
@@ -663,6 +726,7 @@ begin
       AJ.TryGetValue<string>('name', Bucket.Name);
       AJ.TryGetValue<string>('planId', Bucket.PlanId);
       AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
+      self.GetValue(AJ, '@odata.etag', Bucket.ETag);
     end;
   end
   else
@@ -677,10 +741,16 @@ var
   AReq: IHttpRequest;
   ARes: IHTTPResponse;
 begin
+  if Bucket.ETag = '' then
+  begin
+    self.GetBucket(Bucket);
+  end;
+
   AReq := self.Http.GetRequest(sHTTPMethodDelete, self.buildUrl('planner/buckets/' + Bucket.Id));
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
+  AReq.AddHeader('If-Match', Bucket.ETag);
   ARes := self.Http.Execute(AReq);
 
   if ARes.StatusCode = 204 then

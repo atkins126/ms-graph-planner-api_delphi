@@ -33,22 +33,28 @@ begin
     + '  -t, --Task [<Task id>]' + sLineBreak
     + '' + sLineBreak
     + 'Options:' + sLineBreak
-    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
     + '  -h, --Help' + sLineBreak
+    + '  -q, --Quiet' + sLineBreak
+    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+    + '  --Debug' + sLineBreak
     + '' + sLineBreak
     + 'Authentication:' + sLineBreak
-    + '  --TenantID "<your tenant id>"' + sLineBreak
-    + '  --ClientID "<your client id>"' + sLineBreak
-    + '  --RedirectURI "<your redirect uri>"' + sLineBreak
-    + '  --RedirectPort "<your redirect port>"' + sLineBreak
-    + '  --Scope "<scope>,<scope>,<scope>"' + sLineBreak
+    + '  Can be provided as command line parameters or as environment variables.' + sLineBreak
+    + '  Command line parameters have precedence.' + sLineBreak
     + '' + sLineBreak
-    + 'Environement Variables:' + sLineBreak
-    + '  PLANNER_CLI_TENANT_ID' + sLineBreak
-    + '  PLANNER_CLI_CLIENT_ID' + sLineBreak
-    + '  PLANNER_CLI_REDIRECT_URI' + sLineBreak
-    + '  PLANNER_CLI_REDIRECT_PORT' + sLineBreak
-    + '  PLANNER_CLI_SCOPE' + sLineBreak
+    + '  Command line parameters:' + sLineBreak
+    + '    --TenantID "<your tenant id>"' + sLineBreak
+    + '    --ClientID "<your client id>"' + sLineBreak
+    + '    --RedirectURI "<your redirect uri>"' + sLineBreak
+    + '    --RedirectPort "<your redirect port>"' + sLineBreak
+    + '    --Scope "<scope>,<scope>,<scope>"' + sLineBreak
+    + '' + sLineBreak
+    + '  Environement Variables:   (should be self explanatory)' + sLineBreak
+    + '    PLANNER_CLI_TENANT_ID' + sLineBreak
+    + '    PLANNER_CLI_CLIENT_ID' + sLineBreak
+    + '    PLANNER_CLI_REDIRECT_URI' + sLineBreak
+    + '    PLANNER_CLI_REDIRECT_PORT' + sLineBreak
+    + '    PLANNER_CLI_SCOPE' + sLineBreak
     + '' + sLineBreak
   );
 end;
@@ -68,6 +74,8 @@ begin
     Result := 'Bucket'
   else if IndexText(param, ['t', 'Task']) <> -1 then
     Result := 'Task'
+  else if IndexText(param, ['q', 'Quiet']) <> -1 then
+    Result := 'Quiet'
   else if IndexText(param, ['h', 'Help', 'help', '?']) <> -1 then
     Result := 'Help'
   else
@@ -76,11 +84,11 @@ end;
 
 begin
   Result := TDictionary<string, string>.Create();
-  if ParamCount > 1 then
+  if ParamCount >= 1 then
   begin
     //iterate over all params
-    i := 0;
-    while i < ParamCount do
+    i := 1;
+    while i <= ParamCount do
     begin
       s := ParamStr(i);
       if s.StartsWith('-') then
@@ -167,48 +175,6 @@ begin
   );
 end;
 
-procedure printCreateHelp();
-begin
-  WriteLn('' + sLineBreak
-    + 'Usage: planner_cli create [option]' + sLineBreak
-    + '' + sLineBreak
-    + 'Items:' + sLineBreak
-    + '  -b, --Bucket' + sLineBreak
-    + '  -t, --Task' + sLineBreak
-    + '' + sLineBreak
-    + 'Options:' + sLineBreak
-    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
-    + '' + sLineBreak
-    + 'Creates a new item of the specified type.' + sLineBreak
-    + 'The fields option can be used to set' + sLineBreak
-    + 'the values of the fields of the new item.' + sLineBreak
-    + 'If the field option isn''t used, an inter-' + sLineBreak
-    + 'active prompt will be used to set the' + sLineBreak
-    + 'values of the fields.' + sLineBreak
-  );
-end;
-
-procedure printUpdateHelp();
-begin
-  WriteLn('' + sLineBreak
-    + 'Usage: planner_cli update [option]' + sLineBreak
-    + '' + sLineBreak
-    + 'Items:' + sLineBreak
-    + '  -b, --Bucket [<Bucket id>]' + sLineBreak
-    + '  -t, --Task [<Task id>]' + sLineBreak
-    + '' + sLineBreak
-    + 'Options:' + sLineBreak
-    + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
-    + '' + sLineBreak
-    + 'Updates the specified item.' + sLineBreak
-    + 'The fields option can be used to set' + sLineBreak
-    + 'the values of the fields of the item.' + sLineBreak
-    + 'If the field option isn''t used, an inter-' + sLineBreak
-    + 'active prompt will be used to set the' + sLineBreak
-    + 'values of the fields.' + sLineBreak
-  );
-end;
-
 procedure printDeleteHelp();
 begin
   WriteLn('' + sLineBreak
@@ -235,6 +201,90 @@ var
 
   HELPERS: THelpers;
 
+  procedure printUpdateHelp();
+begin
+  if Options.ContainsKey('Bucket') then
+    WriteLn('' + sLineBreak
+      + 'Bucket Fields:' + sLineBreak
+      + '  Name,' + sLineBreak
+      + '  OrderHint' + sLineBreak
+    )
+  else if Options.ContainsKey('Task') then
+    WriteLn('' + sLineBreak
+      + 'Task Fields:' + sLineBreak
+      + '  Title,' + sLineBreak
+      + '  OrderHint,' + sLineBreak
+      + '  DueDateTime,' + sLineBreak
+      + '  PercentComplete,' + sLineBreak
+      + '  BucketId' + sLineBreak
+    )
+  else
+    WriteLn('' + sLineBreak
+      + 'Usage: planner_cli update [option]' + sLineBreak
+      + '' + sLineBreak
+      + 'Items:' + sLineBreak
+      + '  -b, --Bucket [<Bucket id>]' + sLineBreak
+      + '  -t, --Task [<Task id>]' + sLineBreak
+      + '' + sLineBreak
+      + 'Options:' + sLineBreak
+      + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+      + '' + sLineBreak
+      + 'Updates the specified item.' + sLineBreak
+      + 'The fields option can be used to set' + sLineBreak
+      + 'the values of the fields of the item.' + sLineBreak
+      + 'If the field option isn''t used, an inter-' + sLineBreak
+      + 'active prompt will be used to set the' + sLineBreak
+      + 'values of the fields.' + sLineBreak
+      + '' + sLineBreak
+      + 'Get field names:' + sLineBreak
+      + '  planner_cli list update -h -b' + sLineBreak
+      + '  planner_cli list update -h -t' + sLineBreak
+    );
+end;
+
+procedure printCreateHelp();
+begin
+  if Options.ContainsKey('Bucket') then
+    WriteLn('' + sLineBreak
+      + 'Bucket Fields:' + sLineBreak
+      + '  Name,' + sLineBreak
+      + '  OrderHint' + sLineBreak
+      + '  PlanId' + sLineBreak
+    )
+  else if Options.ContainsKey('Task') then
+    WriteLn('' + sLineBreak
+      + 'Task Fields:' + sLineBreak
+      + '  Title,' + sLineBreak
+      + '  OrderHint,' + sLineBreak
+      + '  DueDateTime,' + sLineBreak
+      + '  PercentComplete,' + sLineBreak
+      + '  BucketId,' + sLineBreak
+      + '  PlanId - must not be specified' + sLineBreak
+    )
+  else
+    WriteLn('' + sLineBreak
+      + 'Usage: planner_cli create [option]' + sLineBreak
+      + '' + sLineBreak
+      + 'Items:' + sLineBreak
+      + '  -b, --Bucket' + sLineBreak
+      + '  -t, --Task' + sLineBreak
+      + '' + sLineBreak
+      + 'Options:' + sLineBreak
+      + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
+      + '' + sLineBreak
+      + 'Creates a new item of the specified type.' + sLineBreak
+      + 'The fields option can be used to set' + sLineBreak
+      + 'the values of the fields of the new item.' + sLineBreak
+      + 'If the field option isn''t used, an inter-' + sLineBreak
+      + 'active prompt will be used to set the' + sLineBreak
+      + 'values of the fields.' + sLineBreak
+      + '' + sLineBreak
+      + 'Get field names:' + sLineBreak
+      + '  planner_cli list create -h -b' + sLineBreak
+      + '  planner_cli list create -h -t' + sLineBreak
+    );
+end;
+
 begin
   if ParamCount = 0 then
   begin
@@ -255,7 +305,7 @@ begin
   Options := getOptions();
 
   // check for help
-  if Options.ContainsKey('h') or Options.ContainsKey('Help') then
+  if Options.ContainsKey('Help') then
   begin
     if Command = 'list' then
       printListHelp()
@@ -272,7 +322,7 @@ begin
   end;
 
   // check for verbose
-  Verbose := not (Options.ContainsKey('q') or Options.ContainsKey('Quiet'));
+  Verbose := not (Options.ContainsKey('Quiet'));
 
   // get tenant id
   if Options.ContainsKey('TenantID') then
@@ -334,7 +384,7 @@ begin
     Exit;
   end;
 
-  HELPERS := THelpers.New(TENANT_ID, CLINET_ID, REDIRECT_URI, REDIRECT_PORT, SCOPE, Options);
+  HELPERS := THelpers.New(TENANT_ID, CLINET_ID, REDIRECT_URI, REDIRECT_PORT, SCOPE, Options, Verbose);
 
   // get groups
   // Groups := TList<THelperGroup>.Create(HELPERS.getAllPlanners());s

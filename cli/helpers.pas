@@ -254,7 +254,7 @@ begin
       ReadLn(ANewTask.Title);
       if ANewtask.Title = '' then begin WriteLn('Title is required'); exit; end;
 
-      Write('OrderHint ['''']: '); // debug
+      Write('OrderHint ['''']: ');
       ReadLn(ANewTask.OrderHint);
       // if ANewTask.OrderHint = '' then ANewTask.OrderHint := ' !';
       

@@ -160,16 +160,18 @@ end;
 function TMsPlanner.GetValue(AJ: TJsonValue; AKey: string; var AValue: string): boolean;
 var
   AI: Integer;
+  AJsonObj: TJSONObject;
 begin
   Result := False;
   AValue := '';
   if AKey <> '' then
   begin
-    for AI := 0 to TJSONObject(AJ).Count - 1 do
+    AJsonObj := AJ as TJSONObject;
+    for AI := 0 to AJsonObj.Count - 1 do
     begin
-      if TJSONObject(AJ).Pairs[AI].JsonString.Value = AKey then
+      if AJsonObj.Pairs[AI].JsonString.Value = AKey then
       begin
-        AValue := TJSONObject(AJ).Pairs[AI].JsonValue.Value;
+        AValue :=AJsonObj.Pairs[AI].JsonValue.Value;
         Result := True;
         Break;
       end;
@@ -231,7 +233,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       if AJ.TryGetValue<TJSONArray>('value', AJArr) then
@@ -273,7 +275,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Group.Id);
@@ -310,7 +312,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       if AJ.TryGetValue<TJSONArray>('value', AJArr) then
@@ -353,7 +355,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Planner.Id);
@@ -391,7 +393,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       if AJ.TryGetValue<TJSONArray>('value', AJArr) then
@@ -434,7 +436,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Bucket.Id);
@@ -472,7 +474,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       if AJ.TryGetValue<TJSONArray>('value', AJArr) then
@@ -522,7 +524,7 @@ begin
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Task.Id);
@@ -583,13 +585,14 @@ begin
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
   APayload := TStringStream.Create(AJObj.ToJSON);
+  AJObj.Free;
   AReq.SourceStream := APayload;
   ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 201 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Task.Id);
@@ -650,13 +653,14 @@ begin
   AReq.AddHeader('Prefer', 'return=representation');
   AReq.AddHeader('If-Match', Task.ETag);
   APayload := TStringStream.Create(AJObj.ToJSON);
+  AJObj.Free;
   AReq.SourceStream := APayload;
   ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Task.Id);
@@ -730,13 +734,14 @@ begin
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
   APayload := TStringStream.Create(AJObj.ToJSON);
+  AJObj.Free;
   AReq.SourceStream := APayload;
   ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 201 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Bucket.Id);
@@ -785,13 +790,14 @@ begin
   AReq.AddHeader('If-Match', Bucket.ETag);
   AReq.AddHeader('Prefer', 'return=representation');
   APayload := TStringStream.Create(AJObj.ToJSON);
+  AJObj.Free;
   AReq.SourceStream := APayload;
   ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 200 then
   begin
-    AJ := TJSONObject.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
     if AJ <> nil then
     begin
       AJ.TryGetValue<string>('id', Bucket.Id);

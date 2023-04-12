@@ -4,7 +4,11 @@
 
 {$R *.res}
 
+// {$define FastMM_FullDebugModeWhenDLLAvailable}
+// {$define FastMM_EnableMemoryLeakReporting }
+
 uses
+  // FastMM5,
   System.SysUtils,
   System.StrUtils,
   System.DateUtils,
@@ -286,6 +290,15 @@ begin
 end;
 
 begin
+
+  // FastMM_DeleteEventLogFile;
+  // //FastMM_AttemptToUseSharedMemoryManager;
+  // FastMM_LogToFileEvents := [TFastMM_MemoryManagerEventType(0)..TFastMM_MemoryManagerEventType(10)];
+  // FastMM_OutputDebugStringEvents := [];
+  // FastMM_DebugMode_ScanForCorruptionBeforeEveryOperation := true;
+// 
+  // FastMM_EnterDebugMode;
+
   if ParamCount = 0 then
   begin
     printHelp();

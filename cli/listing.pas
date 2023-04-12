@@ -290,6 +290,7 @@ begin
   msg('  Id: ' + p.Id);
   msg('  Created: ' + p.CreatedDateTime);
   msg('  Owner: ' + p.Owner);
+  msg('  ETag: ' + p.ETag);
 end;
 
 procedure Tlisting.writeBucket(b: TMsPlannerBucket);

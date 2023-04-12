@@ -44,6 +44,7 @@ type
     Owner: string;
     CreatedDateTime: string;
     Buckets: TArray<TMsPlannerBucket>;
+    ETag: string;
   end;
 
   TMsPlannerGroup = record
@@ -58,6 +59,8 @@ type
   private
     procedure handleError(AReq: IHttpRequest; ARes: IHTTPResponse);
     function buildUrl(s: string): string;
+
+    function FExecuteRequest(AReq: IHttpRequest): IHTTPResponse;
 
     function GetValue(AJ: TJsonValue; AKey: string; var AValue: string): boolean;
   protected
@@ -97,6 +100,61 @@ destructor TMsPlanner.Destroy;
 begin
 
   inherited Destroy;
+end;
+
+function TMsPlanner.FExecuteRequest(AReq: IHttpRequest): IHTTPResponse;
+var
+  AStatusCode: integer;
+  ARetryAfterStr: string;
+  ARetryAfter: integer;
+  ARetryCount: integer;
+const
+  DefaultRetryAfter = 1;
+  Max_Retry = 10;
+
+  function GetHeaderValue(AHeaderName: string; AHeaders: TNetHeaders; var AValue: string): boolean;
+  var
+    AHeader: TNetHeader;
+  begin
+    AValue := '';
+    Result := False;
+    for AHeader in AHeaders do
+    begin
+      if SameText(AHeader.Name, AHeaderName) then
+      begin
+        AValue := AHeader.Value;
+        Result := True;
+        Break;
+      end;
+    end;
+  end;
+begin
+  AStatusCode := 429;
+  ARetryAfter := 0;
+  ARetryCount := 0;
+  while (AStatusCode = 429) and (ARetryCount <= Max_Retry) do
+  begin
+    inc(ARetryCount);
+    Result := self.Http.Execute(AReq);
+    AStatusCode := Result.StatusCode;
+    if AStatusCode = 429 then
+    begin
+      self.handleError(AReq, Result);
+      if GetHeaderValue('Retry-After', Result.Headers, ARetryAfterStr) then
+      if TryStrToInt(ARetryAfterStr, ARetryAfter) then
+      begin
+        Sleep(ARetryAfter * 1000);
+      end
+      else
+      begin
+        Sleep(1000 * DefaultRetryAfter);
+      end
+      else
+      begin
+        Sleep(1000 * DefaultRetryAfter);
+      end;
+    end;
+  end;
 end;
 
 function TMsPlanner.GetValue(AJ: TJsonValue; AKey: string; var AValue: string): boolean;
@@ -168,7 +226,8 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -188,6 +247,7 @@ begin
           Result[i] := Group;
         end;
       end;
+      AJ.Free;
     end;
   end
   else
@@ -209,7 +269,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -220,6 +280,7 @@ begin
       AJ.TryGetValue<string>('displayName', Group.DisplayName);
       AJ.TryGetValue<string>('description', Group.Description);
       AJ.TryGetValue<string>('createdDateTime', Group.CreatedDateTime);
+      AJ.Free;
     end;
   end
   else
@@ -245,7 +306,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -262,9 +323,11 @@ begin
           AJVal.TryGetValue<string>('title', Planner.Title);
           AJVal.TryGetValue<string>('owner', Planner.Owner);
           AJVal.TryGetValue<string>('createdDateTime', Planner.CreatedDateTime);
+          self.GetValue(AJVal, '@odata.etag', Planner.ETag);
           Group.Planners[i] := Planner;
         end;
       end;
+      AJ.Free;
     end;
   end
   else
@@ -286,7 +349,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -297,6 +360,8 @@ begin
       AJ.TryGetValue<string>('title', Planner.Title);
       AJ.TryGetValue<string>('owner', Planner.Owner);
       AJ.TryGetValue<string>('createdDateTime', Planner.CreatedDateTime);
+      self.GetValue(AJ, '@odata.etag', Planner.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -322,7 +387,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -343,6 +408,7 @@ begin
           Planner.Buckets[i] := Bucket;
         end;
       end;
+      AJ.Free;
     end;
   end
   else
@@ -364,7 +430,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -376,6 +442,7 @@ begin
       AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
       AJ.TryGetValue<string>('planId', Bucket.PlanId);
       self.GetValue(AJ, '@odata.etag', Bucket.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -401,7 +468,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -429,6 +496,7 @@ begin
           Bucket.Tasks[i] := Task;
         end;
       end;
+      AJ.Free;
     end;
   end
   else
@@ -450,7 +518,7 @@ begin
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 200 then
   begin
@@ -469,6 +537,7 @@ begin
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
       self.GetValue(AJ, '@odata.etag', Task.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -515,7 +584,7 @@ begin
   AReq.AddHeader('Authorization', self.Token);
   APayload := TStringStream.Create(AJObj.ToJSON);
   AReq.SourceStream := APayload;
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 201 then
@@ -534,6 +603,7 @@ begin
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
       self.GetValue(AJ, '@odata.etag', Task.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -581,7 +651,7 @@ begin
   AReq.AddHeader('If-Match', Task.ETag);
   APayload := TStringStream.Create(AJObj.ToJSON);
   AReq.SourceStream := APayload;
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 200 then
@@ -601,6 +671,7 @@ begin
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
       self.GetValue(AJ, '@odata.etag', Task.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -625,7 +696,7 @@ begin
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
   AReq.AddHeader('If-Match', Task.ETag);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 204 then
   begin
@@ -660,7 +731,7 @@ begin
   AReq.AddHeader('Authorization', self.Token);
   APayload := TStringStream.Create(AJObj.ToJSON);
   AReq.SourceStream := APayload;
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 201 then
@@ -673,6 +744,7 @@ begin
       AJ.TryGetValue<string>('planId', Bucket.PlanId);
       AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
       self.GetValue(AJ, '@odata.etag', Bucket.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -714,7 +786,7 @@ begin
   AReq.AddHeader('Prefer', 'return=representation');
   APayload := TStringStream.Create(AJObj.ToJSON);
   AReq.SourceStream := APayload;
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
   APayload.Free;
 
   if ARes.StatusCode = 200 then
@@ -727,6 +799,7 @@ begin
       AJ.TryGetValue<string>('planId', Bucket.PlanId);
       AJ.TryGetValue<string>('orderHint', Bucket.OrderHint);
       self.GetValue(AJ, '@odata.etag', Bucket.ETag);
+      AJ.Free;
     end;
   end
   else
@@ -751,7 +824,7 @@ begin
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
   AReq.AddHeader('If-Match', Bucket.ETag);
-  ARes := self.Http.Execute(AReq);
+  ARes := self.FExecuteRequest(AReq);
 
   if ARes.StatusCode = 204 then
   begin

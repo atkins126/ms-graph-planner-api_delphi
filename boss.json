@@ -1,0 +1,13 @@
+{
+	"name": "ms-graph-planner-api_delphi",
+	"description": "",
+	"version": "1.0.0",
+	"homepage": "",
+	"mainsrc": "./src",
+	"projects": [
+		"./planner_cli.dproj"
+	],
+	"dependencies": {
+		"github.com/merofuruya/microsoftapiauthentication": "^v1.3.1"
+	}
+}

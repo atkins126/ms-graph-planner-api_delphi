@@ -95,6 +95,7 @@ begin
     if APlanner.Id <> '' then
     begin
       Self.FPlannerLib.GetPlanner(APlanner);
+      if self.FOptions.ContainsKey('Details') then self.FPlannerLib.GetPlannerDetails(APlanner);
       self.writePlanner(APlanner);
 
       if self.FOptions.ContainsKey('Bucket') or self.FOptions.ContainsKey('Task') then
@@ -129,7 +130,7 @@ begin
       if self.FOptions.ContainsKey('Planner') or self.FOptions.ContainsKey('Bucket') or self.FOptions.ContainsKey('Task') then
       begin
         inc(self.FIndentation);
-        self.FPlannerLib.GetPlanners(AGroup);
+        self.FPlannerLib.GetPlanners(AGroup, self.FOptions.ContainsKey('Details'));
         for AIPlanner := 0 to Length(AGroup.Planners) -1 do
         begin
           APlanner := AGroup.Planners[AIPlanner];
@@ -188,7 +189,7 @@ begin
       AGroup := AGroups[AIGroup];
       self.writeGroup(AGroup);
       inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
+      self.FPlannerLib.GetPlanners(AGroup, self.FOptions.ContainsKey('Details'));
       AGroups[AIGroup] := AGroup;
       for AIPlan := 0 to Length(AGroup.Planners) -1 do
       begin
@@ -219,7 +220,7 @@ begin
       AGroup := AGroups[AIGroup];
       self.writeGroup(AGroup);
       inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
+      self.FPlannerLib.GetPlanners(AGroup, self.FOptions.ContainsKey('Details'));
       AGroups[AIGroup] := AGroup;
       for AIPlan := 0 to Length(AGroup.Planners) -1 do
       begin
@@ -244,7 +245,7 @@ begin
       AGroup := AGroups[AIGroup];
       self.writeGroup(AGroup);
       inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
+      self.FPlannerLib.GetPlanners(AGroup, self.FOptions.ContainsKey('Details'));
       AGroups[AIGroup] := AGroup;
       for APlan in AGroup.Planners do
       begin
@@ -268,7 +269,7 @@ begin
       AGroup := AGroups[AIGroup];
       self.writeGroup(AGroup);
       inc(self.FIndentation);
-      self.FPlannerLib.GetPlanners(AGroup);
+      self.FPlannerLib.GetPlanners(AGroup, self.FOptions.ContainsKey('Details'));
       AGroups[AIGroup] := AGroup;
       for APlan in AGroup.Planners do
       begin
@@ -285,12 +286,24 @@ begin
 end;
 
 procedure Tlisting.writePlanner(p: TMsPlannerPlanner);
+var
+  ACategory: TMsPlannerCategory;
 begin
-  msg('- Planner: ' + p.Title);
-  msg('  Id: ' + p.Id);
-  msg('  Created: ' + p.CreatedDateTime);
-  msg('  Owner: ' + p.Owner);
-  msg('  ETag: ' + p.ETag);
+  self.msg('- Planner: ' + p.Title);
+  self.msg('  Id: ' + p.Id);
+  self.msg('  Created: ' + p.CreatedDateTime);
+  self.msg('  Owner: ' + p.Owner);
+  self.msg('  ETag: ' + p.ETag);
+  if Length(p.Categories) > 0 then
+  begin
+    inc(self.FIndentation);
+    for ACategory in p.Categories do
+    begin
+      self.msg('- Category: ' + ACategory.Name);
+      self.msg('  Id: ' + ACategory.Id);
+    end;
+    dec(self.FIndentation);
+  end;
 end;
 
 procedure Tlisting.writeBucket(b: TMsPlannerBucket);
@@ -303,6 +316,8 @@ begin
 end;
 
 procedure Tlisting.writeTask(t: TMsPlannerTask);
+var
+  ACategory: TMsPlannerCategory;
 begin
   self.msg('- Task: ' + t.Title);
   self.msg('  Id: ' + t.Id);
@@ -315,6 +330,19 @@ begin
   self.msg('  Has Description: ' + t.HasDescription);
   self.msg('  Preview Type: ' + t.PreviewType);
   self.msg('  ETag: ' + t.ETag);
+  if length(t.AppliedCategories) > 0 then
+  begin
+    inc(self.FIndentation);
+    for ACategory in t.AppliedCategories do
+    begin
+      self.msg('- Category: ' + ACategory.id);
+      if ACategory.Enabled then
+        self.msg('  enabled: true')
+      else
+        self.msg('  enabled: false');
+    end;
+    dec(self.FIndentation);
+  end;
 end;
 
 procedure Tlisting.writeGroup(g: TMsPlannerGroup);

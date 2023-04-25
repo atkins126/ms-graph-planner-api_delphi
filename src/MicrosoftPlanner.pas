@@ -14,6 +14,12 @@ uses
   MicrosoftApiAuthenticator;
 
 type
+  TMsPlannerCategory = record
+    Name: string;
+    id: string;
+    enabled: boolean;
+  end;
+
   TMsPlannerTask = record
     Id: string;
     Title: string;
@@ -27,6 +33,7 @@ type
     HasDescription: string;
     PreviewType: string;
     ETag: string;
+    AppliedCategories: TArray<TMsPlannerCategory>;
   end;
 
   TMsPlannerBucket = record
@@ -45,6 +52,7 @@ type
     CreatedDateTime: string;
     Buckets: TArray<TMsPlannerBucket>;
     ETag: string;
+    Categories: TArray<TMsPlannerCategory>;
   end;
 
   TMsPlannerGroup = record
@@ -67,12 +75,16 @@ type
   public
     function GetGroups: TArray<TMsPlannerGroup>;
     procedure GetGroup(var Group: TMsPlannerGroup);
-    procedure GetPlanners(var Group: TMsPlannerGroup);
+    procedure GetPlanners(var Group: TMsPlannerGroup); overload;
+    procedure GetPlanners(var Group: TMsPlannerGroup; details: boolean); overload;
     procedure GetPlanner(var Planner: TMsPlannerPlanner);
+    procedure GetPlannerDetails(var Planner: TMsPlannerPlanner);
     procedure GetBuckets(var Planner: TMsPlannerPlanner);
     procedure GetBucket(var Bucket: TMsPlannerBucket);
     procedure GetTasks(var Bucket: TMsPlannerBucket);
     procedure GetTask(var Task: TMsPlannerTask);
+
+    procedure UpdatePlannerDetails(var Planner: TMsPlannerPlanner);
 
     procedure CreateBucket(var Bucket: TMsPlannerBucket);
     procedure CreateTask(var Task: TMsPlannerTask);
@@ -83,6 +95,8 @@ type
     procedure DeleteBucket(var Bucket: TMsPlannerBucket);
     procedure DeleteTask(var Task: TMsPlannerTask);
     
+    procedure MapCategories(Planner: TMsPlannerPlanner; var Task: TMsPlannerTask);
+
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
     destructor Destroy; override;
   end;
@@ -338,6 +352,23 @@ begin
   end;
 end;
 
+procedure TMsPlanner.GetPlanners(var Group: TMsPlannerGroup; details: boolean);
+var
+  AI: integer;
+  APlanner: TMsPlannerPlanner;
+begin
+  self.GetPlanners(Group);
+  if details then
+  begin
+    for AI := 0 to length(Group.Planners)-1 do
+    begin
+      APlanner := Group.Planners[AI];
+      self.GetPlannerDetails(APlanner);
+      Group.Planners[AI] := APlanner;
+    end;
+  end;
+end;
+
 procedure TMsPlanner.GetPlanner(var Planner: TMsPlannerPlanner);
 var
   // requests
@@ -363,6 +394,48 @@ begin
       AJ.TryGetValue<string>('owner', Planner.Owner);
       AJ.TryGetValue<string>('createdDateTime', Planner.CreatedDateTime);
       self.GetValue(AJ, '@odata.etag', Planner.ETag);
+      AJ.Free;
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.GetPlannerDetails(var Planner: TMsPlannerPlanner);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+
+  // planner data
+  AJ: TJSONValue;
+  AJsonCategories: TJSONObject;
+  ANewCategory: TMsPlannerCategory;
+  AI: integer;
+begin
+  AReq := self.Http.GetRequest(sHTTPMethodGet, self.buildUrl('planner/plans/' + Planner.Id + '/details'));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  ARes := self.FExecuteRequest(AReq);
+
+  if ARes.StatusCode = 200 then
+  begin
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      if AJ.TryGetValue<TJsonObject>('categoryDescriptions', AJsonCategories) then
+      begin
+        for AI := 0 to AJsonCategories.Count - 1 do
+        begin
+          ANewCategory.id := AJsonCategories.Pairs[AI].JsonString.Value;
+          ANewCategory.name := AJsonCategories.Pairs[AI].JsonValue.Value;
+          Planner.Categories := Planner.Categories + [ANewCategory];
+        end;
+      end;
+
       AJ.Free;
     end;
   end
@@ -463,10 +536,13 @@ var
   AJ: TJSONValue;
   AJArr: TJSONArray;
   AJVal: TJSONValue;
+  AJAppliedCategories: TJSONObject;
   i: integer;
+  AI: integer;
   Task: TMsPlannerTask;
+  ANewAppliedCategory: TMsPlannerCategory;
 begin
-  AReq := self.Http.GetRequest(sHTTPMethodGet, self.buildUrl('planner/buckets/' + Bucket.Id + '/tasks?$count=true&$select=id,title,orderHint,planId,createdDateTime,completedDateTime,percentComplete,dueDateTime,hasDescription,previewType'));
+  AReq := self.Http.GetRequest(sHTTPMethodGet, self.buildUrl('planner/buckets/' + Bucket.Id + '/tasks?$count=true&$select=id,title,orderHint,planId,createdDateTime,completedDateTime,percentComplete,dueDateTime,hasDescription,previewType,appliedCategories'));
   AReq.AddHeader('Content-Type', 'application/json');
   AReq.AddHeader('Accept', 'application/json');
   AReq.AddHeader('Authorization', self.Token);
@@ -494,6 +570,18 @@ begin
           AJVal.TryGetValue<string>('dueDateTime', Task.DueDateTime);
           AJVal.TryGetValue<string>('hasDescription', Task.HasDescription);
           AJVal.TryGetValue<string>('previewType', Task.PreviewType);
+
+          // get appliedCategories
+          if AJVal.TryGetValue<TJSONObject>('appliedCategories', AJAppliedCategories) then
+          begin
+            for AI := 0 to AJAppliedCategories.Count - 1 do
+            begin
+              ANewAppliedCategory.id := AJAppliedCategories.Pairs[AI].JsonString.Value;
+              ANewAppliedCategory.enabled := AJAppliedCategories.Pairs[AI].JsonValue.Value = 'true';
+              Task.AppliedCategories := Task.AppliedCategories + [ANewAppliedCategory];
+            end;
+          end;
+
           self.GetValue(AJVal, '@odata.etag', Task.ETag);
           Bucket.Tasks[i] := Task;
         end;
@@ -515,6 +603,9 @@ var
 
   // task data
   AJ: TJSONValue;
+  AJAppliedCategories: TJSONObject;
+  ANewAppliedCategory: TMsPlannerCategory;
+  i: integer;
 begin
   AReq := self.Http.GetRequest(sHTTPMethodGet, self.buildUrl('planner/tasks/' + Task.Id));
   AReq.AddHeader('Content-Type', 'application/json');
@@ -538,6 +629,18 @@ begin
       AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
+
+      // get appliedCategories
+      if AJ.TryGetValue<TJSONObject>('appliedCategories', AJAppliedCategories) then
+      begin
+        for i := 0 to AJAppliedCategories.Count - 1 do
+        begin
+          ANewAppliedCategory.id := AJAppliedCategories.Pairs[i].JsonString.Value;
+          ANewAppliedCategory.enabled := AJAppliedCategories.Pairs[i].JsonValue.Value = 'true';
+          Task.AppliedCategories := Task.AppliedCategories + [ANewAppliedCategory];
+        end;
+      end;
+
       self.GetValue(AJ, '@odata.etag', Task.ETag);
       AJ.Free;
     end;
@@ -547,6 +650,66 @@ begin
     self.handleError(AReq, ARes);
   end;
 end;
+
+procedure TMsPlanner.UpdatePlannerDetails(var Planner: TMsPlannerPlanner);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+  APayload: TStringStream;
+
+  // planner data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+  AJsonCategories: TJSONObject;
+  ANewCategory: TMsPlannerCategory;
+  Ai: Integer;
+begin
+  AJObj := TJSONObject.Create;
+  if length(Planner.Categories) > 0 then
+  begin
+    AJsonCategories := TJSONObject.Create;
+    for Ai := 0 to Length(Planner.Categories) - 1 do
+    begin
+      AJsonCategories.AddPair(Planner.Categories[Ai].Name, Planner.Categories[Ai].Name);
+    end;
+    AJObj.AddPair('categoryDescriptions', AJsonCategories);
+  end;
+
+  AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/plans/' + Planner.Id + '/details'));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  AReq.AddHeader('Prefer', 'return=representation');
+  APayload := TStringStream.Create(AJObj.ToJSON);
+  AJObj.Free;
+  AReq.SourceStream := APayload;
+  ARes := self.FExecuteRequest(AReq);
+  APayload.Free;
+
+  if ARes.StatusCode = 200 then
+  begin
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      if AJ.TryGetValue<TJsonObject>('categoryDescriptions', AJsonCategories) then
+      begin
+        for AI := 0 to AJsonCategories.Count - 1 do
+        begin
+          ANewCategory.id := AJsonCategories.Pairs[AI].JsonString.Value;
+          ANewCategory.name := AJsonCategories.Pairs[AI].JsonValue.Value;
+          Planner.Categories := Planner.Categories + [ANewCategory];
+        end;
+      end;
+      AJ.Free;
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
 
 procedure TMsPlanner.CreateTask(var Task: TMsPlannerTask);
 var
@@ -560,6 +723,9 @@ var
   // task data
   AJ: TJSONValue;
   AJObj: TJSONObject;
+  AJAppliedCategories: TJSONObject;
+  ANewAppliedCategory: TMsPlannerCategory;
+  i: Integer;
 begin
   AJObj := TJSONObject.Create;
 
@@ -579,6 +745,17 @@ begin
     AJObj.AddPair('percentComplete', Task.PercentComplete);
   if Task.DueDateTime <> '' then
     AJObj.AddPair('dueDateTime', Task.DueDateTime);
+  
+  // add appliedCategories
+  if Length(Task.AppliedCategories) > 0 then
+  begin
+    AJAppliedCategories := TJSONObject.Create;
+    for i := 0 to Length(Task.AppliedCategories) - 1 do
+    begin
+      AJAppliedCategories.AddPair(Task.AppliedCategories[i].Name, TJSONBool.Create(Task.AppliedCategories[i].enabled));
+    end;
+    AJObj.AddPair('appliedCategories', AJAppliedCategories);
+  end;
 
   AReq := self.Http.GetRequest(sHTTPMethodPost, self.buildUrl('planner/tasks'));
   AReq.AddHeader('Content-Type', 'application/json');
@@ -605,6 +782,19 @@ begin
       AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
+
+      // get appliedCategories
+      Task.AppliedCategories := [];
+      if AJ.TryGetValue<TJSONObject>('appliedCategories', AJAppliedCategories) then
+      begin
+        for i := 0 to AJAppliedCategories.Count - 1 do
+        begin
+          ANewAppliedCategory.Name := AJAppliedCategories.Pairs[i].JsonString.Value;
+          ANewAppliedCategory.enabled := AJAppliedCategories.Pairs[i].JsonValue.Value = 'true';
+          Task.AppliedCategories := Task.AppliedCategories + [ANewAppliedCategory];
+        end;
+      end;
+
       self.GetValue(AJ, '@odata.etag', Task.ETag);
       AJ.Free;
     end;
@@ -626,6 +816,9 @@ var
   // task data
   AJ: TJSONValue;
   AJObj: TJSONObject;
+  AJAppliedCategories: TJSONObject;
+  ANewAppliedCategory: TMsPlannerCategory;
+  i: Integer;
 begin
   if Task.ETag = '' then
   begin
@@ -645,6 +838,15 @@ begin
     AJObj.AddPair('percentComplete', Task.PercentComplete);
   if Task.DueDateTime <> '' then
     AJObj.AddPair('dueDateTime', Task.DueDateTime);
+  if length(Task.AppliedCategories) > 0 then
+  begin
+    AJAppliedCategories := TJSONObject.Create;
+    for i := 0 to Length(Task.AppliedCategories) - 1 do
+    begin
+      AJAppliedCategories.AddPair(Task.AppliedCategories[i].Name, TJSONBool.Create(Task.AppliedCategories[i].enabled));
+    end;
+    AJObj.AddPair('categories', AJAppliedCategories);
+  end;
 
   AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/tasks/' + Task.Id));
   AReq.AddHeader('Content-Type', 'application/json');
@@ -674,6 +876,19 @@ begin
       AJ.TryGetValue<string>('dueDateTime', Task.DueDateTime);
       AJ.TryGetValue<string>('hasDescription', Task.HasDescription);
       AJ.TryGetValue<string>('previewType', Task.PreviewType);
+
+      // get appliedCategories
+      if AJ.TryGetValue<TJSONObject>('appliedCategories', AJAppliedCategories) then
+      begin
+        SetLength(Task.AppliedCategories, AJAppliedCategories.Count);
+        for i := 0 to AJAppliedCategories.Count - 1 do
+        begin
+          ANewAppliedCategory.Name := AJAppliedCategories.Pairs[i].JsonString.Value;
+          ANewAppliedCategory.enabled := AJAppliedCategories.Pairs[i].JsonValue.Value = 'true';
+          Task.AppliedCategories := Task.AppliedCategories + [ANewAppliedCategory];
+        end;
+      end;
+
       self.GetValue(AJ, '@odata.etag', Task.ETag);
       AJ.Free;
     end;
@@ -839,6 +1054,24 @@ begin
   else
   begin
     self.handleError(AReq, ARes);
+  end;
+end;
+
+procedure TMsPlanner.MapCategories(Planner: TMsPlannerPlanner; var Task: TMsPlannerTask);
+var
+  I: Integer;
+  AI: Integer;
+begin
+  for I := 0 to length(Task.AppliedCategories) - 1 do
+  begin
+    for AI := 0 to length(Planner.Categories) - 1 do
+    begin
+      if Planner.Categories[AI].Id = Task.AppliedCategories[I].Id then
+      begin
+        Task.AppliedCategories[I].Name := Planner.Categories[AI].Name;
+        break;
+      end;
+    end;
   end;
 end;
 

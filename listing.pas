@@ -66,7 +66,7 @@ begin
   begin
     if ATask.Id <> '' then
     begin
-      self.FPlannerLib.GetTask(ATask);
+      self.FPlannerLib.GetTask(ATask, self.FOptions.ContainsKey('Details'));
       self.writeTask(ATask);
       exit(true);
     end;
@@ -82,7 +82,7 @@ begin
       if self.FOptions.ContainsKey('Task') then
       begin
         inc(self.FIndentation);
-        self.FPlannerLib.GetTasks(ABucket);
+        self.FPlannerLib.GetTasks(ABucket, self.FOptions.ContainsKey('Details'));
         for ATask in ABucket.Tasks do self.writeTask(ATask);
         dec(self.FIndentation);
       end;
@@ -109,7 +109,7 @@ begin
           if self.FOptions.ContainsKey('Task') then
           begin
             inc(self.FIndentation);
-            self.FPlannerLib.GetTasks(ABucket);
+            self.FPlannerLib.GetTasks(ABucket, self.FOptions.ContainsKey('Details'));
             for ATask in ABucket.Tasks do self.writeTask(ATask);
             dec(self.FIndentation);
           end;
@@ -146,7 +146,7 @@ begin
               if self.FOptions.ContainsKey('Task') then
               begin
                 inc(self.FIndentation);
-                self.FPlannerLib.GetTasks(ABucket);
+                self.FPlannerLib.GetTasks(ABucket, self.FOptions.ContainsKey('Details'));
                 for ATask in ABucket.Tasks do self.writeTask(ATask);
                 dec(self.FIndentation);
               end;
@@ -203,7 +203,7 @@ begin
           ABucket := APlan.Buckets[AIBucket];
           self.writeBucket(ABucket);
           inc(self.FIndentation);
-          self.FPlannerLib.GetTasks(ABucket);
+          self.FPlannerLib.GetTasks(ABucket, self.FOptions.ContainsKey('Details'));
           APlan.Buckets[AIBucket] := ABucket;
           for ATask in ABucket.Tasks do self.writeTask(ATask);
           dec(self.FIndentation);
@@ -318,6 +318,7 @@ end;
 procedure Tlisting.writeTask(t: TMsPlannerTask);
 var
   ACategory: TMsPlannerCategory;
+  AChecklistItem: TMsPlannerChecklistItem;
 begin
   self.msg('- Task: ' + t.Title);
   self.msg('  Id: ' + t.Id);
@@ -340,6 +341,32 @@ begin
         self.msg('  enabled: true')
       else
         self.msg('  enabled: false');
+    end;
+    dec(self.FIndentation);
+  end;
+  if (t.TaskDetails.Description <> '') Or
+    (t.TaskDetails.PreviewType <> '') Or
+    (length(t.TaskDetails.Checklist) > 0) then
+  begin
+    inc(self.FIndentation);
+    self.msg('- Details:');
+    self.msg('  Description: ' + t.TaskDetails.Description);
+    self.msg('  Preview Type: ' + t.TaskDetails.PreviewType);
+    self.msg('  ETag: ' + t.TaskDetails.ETag);
+    if length(t.TaskDetails.Checklist) > 0 then
+    begin
+      inc(self.FIndentation);
+      for AChecklistItem in t.TaskDetails.Checklist do
+      begin
+        self.msg('- Checklist: ' + AChecklistItem.Title);
+        self.msg('  Id: ' + AChecklistItem.Id);
+        self.msg('  Order Hint: ' + AChecklistItem.OrderHint);
+        if AChecklistItem.IsChecked then
+          self.msg('  Is Checked: true')
+        else
+          self.msg('  Is Checked: false');
+      end;
+      dec(self.FIndentation);
     end;
     dec(self.FIndentation);
   end;

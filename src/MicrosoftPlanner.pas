@@ -20,6 +20,24 @@ type
     enabled: boolean;
   end;
 
+  TMsPlannerCheckListItem = record
+    Id: string;
+    Title: string;
+    IsChecked: boolean;
+    LastModifiedBy: string;  // not implemented atm
+    LastModifiedDateTime: string;
+    OrderHint: string;
+    IsDeleted: boolean;
+    class operator Initialize (out Dest: TMsPlannerCheckListItem);
+  end;
+
+  TMsPlannerTaskDetails = record
+    Description: string;
+    PreviewType: string;
+    Checklist: TArray<TMsPlannerCheckListItem>;
+    ETag: string;
+  end;
+
   TMsPlannerTask = record
     Id: string;
     Title: string;
@@ -33,6 +51,7 @@ type
     HasDescription: string;
     PreviewType: string;
     ETag: string;
+    TaskDetails: TMsPlannerTaskDetails;
     AppliedCategories: TArray<TMsPlannerCategory>;
   end;
 
@@ -81,20 +100,23 @@ type
     procedure GetPlannerDetails(var Planner: TMsPlannerPlanner);
     procedure GetBuckets(var Planner: TMsPlannerPlanner);
     procedure GetBucket(var Bucket: TMsPlannerBucket);
-    procedure GetTasks(var Bucket: TMsPlannerBucket);
-    procedure GetTask(var Task: TMsPlannerTask);
-
-    procedure UpdatePlannerDetails(var Planner: TMsPlannerPlanner);
+    procedure GetTasks(var Bucket: TMsPlannerBucket); overload;
+    procedure GetTasks(var Bucket: TMsPlannerBucket; details: Boolean); overload;
+    procedure GetTask(var Task: TMsPlannerTask); overload;
+    procedure GetTask(var Task: TMsPlannerTask; details: Boolean); overload;
+    procedure GetTaskDetails(var Task: TMsPlannerTask);
 
     procedure CreateBucket(var Bucket: TMsPlannerBucket);
     procedure CreateTask(var Task: TMsPlannerTask);
 
+    procedure UpdatePlannerDetails(var Planner: TMsPlannerPlanner);
     procedure UpdateBucket(var Bucket: TMsPlannerBucket);
     procedure UpdateTask(var Task: TMsPlannerTask);
+    procedure UpdateTaskDetails(var Task: TMsPlannerTask);
 
     procedure DeleteBucket(var Bucket: TMsPlannerBucket);
     procedure DeleteTask(var Task: TMsPlannerTask);
-    
+
     procedure MapCategories(Planner: TMsPlannerPlanner; var Task: TMsPlannerTask);
 
     constructor Create(Authenticator: TMsAuthenticator); reintroduce;
@@ -102,6 +124,19 @@ type
   end;
 
 implementation
+
+{ TMsPlannerCheckListItem }
+
+class operator TMsPlannerCheckListItem.Initialize (out Dest: TMsPlannerCheckListItem);
+begin
+  Dest.Id := GUIDToString(TGUID.NewGuid).Replace('{', '').Replace('}', '');
+  Dest.Title := '';
+  Dest.IsChecked := False;
+  Dest.LastModifiedBy := '';
+  Dest.LastModifiedDateTime := '';
+  Dest.OrderHint := ' !';
+  Dest.IsDeleted := False;
+end;
 
 { TMsPlanner }
 
@@ -595,6 +630,16 @@ begin
   end;
 end;
 
+procedure TMsPlanner.GetTasks(var Bucket: TMsPlannerBucket; details: boolean);
+var
+  AI: integer;
+begin
+  self.GetTasks(Bucket);
+  if details then
+    for AI := 0 to Length(Bucket.Tasks) - 1 do
+      self.GetTaskDetails(Bucket.Tasks[AI]);
+end;
+
 procedure TMsPlanner.GetTask(var Task: TMsPlannerTask);
 var
   // requests
@@ -650,6 +695,69 @@ begin
     self.handleError(AReq, ARes);
   end;
 end;
+
+procedure TMsPlanner.GetTask(var Task: TMsPlannerTask; details: boolean);
+begin
+  self.GetTask(Task);
+  if details then
+  begin
+    self.GetTaskDetails(Task);
+  end;
+end;
+
+procedure TMsPlanner.GetTaskDetails(var Task: TMsPlannerTask);
+var
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+
+  // task data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+  AJChecklistItem: TJSONValue;
+  ANewChecklistItem: TMsPlannerCheckListItem;
+  AStr: string;
+  Ai: Integer;
+begin
+  AReq := self.Http.GetRequest(sHTTPMethodGet, self.buildUrl('planner/tasks/' + Task.Id + '/details'));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  ARes := self.FExecuteRequest(AReq);
+
+  if ARes.StatusCode = 200 then
+  begin
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      AJ.TryGetValue<string>('description', Task.TaskDetails.Description);
+      AJ.TryGetValue<string>('previewType', Task.TaskDetails.PreviewType);
+
+      // get Checklist
+      if AJ.TryGetValue<TJSONObject>('checklist', AJObj) then
+      begin
+        for Ai := 0 to AJObj.Count - 1 do
+        begin
+          ANewChecklistItem.id := AJObj.Pairs[Ai].JsonString.Value;
+          AJChecklistItem := AJObj.Pairs[Ai].JsonValue;
+          if AJChecklistItem.TryGetValue<string>('isChecked', AStr) then
+            ANewChecklistItem.IsChecked := AStr = 'true';
+          AJChecklistItem.TryGetValue<string>('title', ANewChecklistItem.Title);
+          AJChecklistItem.TryGetValue<string>('lastModifiedByDateTime', ANewChecklistItem.LastModifiedDateTime);
+          AJChecklistItem.TryGetValue<string>('orderHint', ANewChecklistItem.OrderHint);
+          Task.TaskDetails.Checklist := Task.TaskDetails.Checklist + [ANewChecklistItem];
+        end;
+        self.GetValue(AJ, '@odata.etag', Task.TaskDetails.ETag);
+      end;
+      AJ.Free;
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
 
 procedure TMsPlanner.UpdatePlannerDetails(var Planner: TMsPlannerPlanner);
 var
@@ -898,6 +1006,105 @@ begin
     self.handleError(AReq, ARes);
   end;
 end;
+
+procedure TMsPlanner.UpdateTaskDetails(var Task: TMsPlannerTask);
+var
+  OldTask: TMsPlannerTask;
+  // requests
+  AReq: IHttpRequest;
+  ARes: IHTTPResponse;
+  APayload: TStringStream;
+
+  // task data
+  AJ: TJSONValue;
+  AJObj: TJSONObject;
+  AJChecklist: TJSONObject;
+  AJChecklistItem: TJSONObject;
+  i: Integer;
+begin
+  if task.TaskDetails.ETag = '' then
+  begin
+    OldTask.Id := Task.Id;
+    self.GetTaskDetails(OldTask);
+    Task.TaskDetails.ETag := OldTask.TaskDetails.ETag;
+  end;
+
+  AJObj := TJSONObject.Create;
+  if Task.TaskDetails.Description <> '' then
+    AJObj.AddPair('description', Task.TaskDetails.Description);
+  if Task.TaskDetails.PreviewType <> '' then
+    AJObj.AddPair('previewType', Task.TaskDetails.PreviewType);
+  if length(Task.TaskDetails.Checklist) > 0 then
+  begin
+    AJChecklist := TJSONObject.Create;
+    for i := 0 to Length(Task.TaskDetails.Checklist) - 1 do
+    begin
+      if Task.TaskDetails.Checklist[i].Id <> '' then
+      begin
+        if Task.TaskDetails.Checklist[i].IsDeleted then
+          AJChecklist.AddPair(Task.TaskDetails.Checklist[i].Id, TJSONNull.Create)
+        else
+        begin
+          AJChecklistItem := TJSONObject.Create;
+          AJChecklistItem.AddPair('title', Task.TaskDetails.Checklist[i].Title);
+          AJChecklistItem.AddPair('isChecked', TJSONBool.Create(Task.TaskDetails.Checklist[i].IsChecked));
+          AJChecklistItem.AddPair('orderHint', Task.TaskDetails.Checklist[i].OrderHint);
+          AJChecklistItem.AddPair('@odata.type', TJSONString.Create('microsoft.graph.plannerChecklistItem'));
+          AJChecklist.AddPair(Task.TaskDetails.Checklist[i].Id, AJChecklistItem);
+        end;
+      end;
+    end;
+    AJObj.AddPair('checklist', AJChecklist);
+  end;
+
+  AReq := self.Http.GetRequest(sHTTPMethodPatch, self.buildUrl('planner/tasks/' + Task.Id + '/details'));
+  AReq.AddHeader('Content-Type', 'application/json');
+  AReq.AddHeader('Accept', 'application/json');
+  AReq.AddHeader('Authorization', self.Token);
+  AReq.AddHeader('Prefer', 'return=representation');
+  AReq.AddHeader('If-Match', Task.TaskDetails.ETag);
+  APayload := TStringStream.Create(AJObj.ToJSON);
+  AJObj.Free;
+  AReq.SourceStream := APayload;
+  ARes := self.FExecuteRequest(AReq);
+  APayload.Free;
+
+  if ARes.StatusCode = 200 then
+  begin
+    AJ := TJSONValue.ParseJSONValue(ARes.ContentAsString(TEncoding.UTF8));
+    if AJ <> nil then
+    begin
+      AJ.TryGetValue<string>('description', Task.TaskDetails.Description);
+      AJ.TryGetValue<string>('previewType', Task.TaskDetails.PreviewType);
+
+      // get checklist
+      if AJ.TryGetValue<TJSONObject>('checklist', AJChecklist) then
+      begin
+        SetLength(Task.TaskDetails.Checklist, AJChecklist.Count);
+        for i := 0 to AJChecklist.Count - 1 do
+        begin
+          Task.TaskDetails.Checklist[i].Id := AJChecklist.Pairs[i].JsonString.Value;
+          if AJChecklist.Pairs[i].JsonValue is TJSONNull then
+            Task.TaskDetails.Checklist[i].IsDeleted := true
+          else
+          begin
+            Task.TaskDetails.Checklist[i].IsDeleted := false;
+            AJChecklist.Pairs[i].JsonValue.TryGetValue<string>('title', Task.TaskDetails.Checklist[i].Title);
+            Task.TaskDetails.Checklist[i].IsChecked := AJChecklist.GetValue<string>('isChecked', 'false') = 'true';
+            AJChecklist.Pairs[i].JsonValue.TryGetValue<string>('orderHint', Task.TaskDetails.Checklist[i].OrderHint);
+          end;
+        end;
+      end;
+      self.GetValue(AJ, '@odata.etag', Task.TaskDetails.ETag);
+      AJ.Free;
+    end;
+  end
+  else
+  begin
+    self.handleError(AReq, ARes);
+  end;
+end;
+
 
 procedure TMsPlanner.DeleteTask(var Task: TMsPlannerTask);
 var

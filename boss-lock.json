@@ -4,8 +4,8 @@
 	"installedModules": {
 		"github.com/merofuruya/microsoftapiauthentication": {
 			"name": "microsoftapiauthentication",
-			"version": "v1.3.1",
-			"hash": "9ef50e40292ea2dbe258c33e19dcd769",
+			"version": "v1.3.2",
+			"hash": "df5bc5065ab670c0be5865efc314e905",
 			"artifacts": {},
 			"failed": false,
 			"changed": false

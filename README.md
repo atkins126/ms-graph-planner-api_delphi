@@ -2,6 +2,12 @@
 
 This is a small module and cli to access the Microsoft Planner API from Delphi.
 
+Recommended Scope for the cli and the module:
+
+```Text
+GroupMember.Read.All, Tasks.ReadWrite, Group.ReadWrite.All
+```
+
 ## 1 CLI
 
 ### 1.1 Installation

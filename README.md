@@ -5,7 +5,7 @@ This is a small module and cli to access the Microsoft Planner API from Delphi.
 Recommended Scope for the cli and the module:
 
 ```Text
-GroupMember.Read.All, Tasks.ReadWrite, Group.ReadWrite.All
+GroupMember.Read.All, Tasks.ReadWrite
 ```
 
 ## 1 CLI
@@ -23,23 +23,33 @@ $env:PLANNER_CLI_CLIENT_ID = "<your client id>"
 $env:PLANNER_CLI_REDIRECT_URI = "<your redirect uri>"
 $env:PLANNER_CLI_REDIRECT_PORT = "<your redirect port>"
 $env:PLANNER_CLI_SCOPE = "<scope>,<scope>,<scope>"
-planner_cli.exe $args
+planner_cli $args
 ```
 
 Or
 
 ```powershell
-planner_cli.exe $args --TenantID "<your tenant id>" --ClientID "<your client id>" --RedirectURI "<your redirect uri>" --RedirectPort "<your redirect port>" --Scope "<scope>,<scope>,<scope>"
+planner_cli $args --TenantID "<your tenant id>" --ClientID "<your client id>" --RedirectURI "<your redirect uri>" --RedirectPort "<your redirect port>" --Scope "<scope>,<scope>,<scope>"
 ```
 
 ### 1.2 Usage
 
-For help, just type `planner_cli.exe --help` or `planner_cli.exe <command> --help`.
+For help, just type
+
+```powershell
+planner_cli --help
+```
+
+or
+
+```powershell
+planner_cli <command> --help
+```
 
 #### 1.2.1 listing
 
 ```powershell
-planner_cli.exe list
+planner_cli list
 ```
 
 This will list all the plans in your tenant you are allowed to see.
@@ -77,19 +87,19 @@ The structure is always the following:
 Now if you want to list all buckets in a specific plan, you can do it like this:
 
 ```powershell
-planner_cli.exe list --Planner <plan id> --Bucket
+planner_cli list --Planner <plan id> --Bucket
 ```
 
 You could also list all tasks in a specific bucket:
 
 ```powershell
-planner_cli.exe list --Bucket <bucket id> --Task
+planner_cli list --Bucket <bucket id> --Task
 ```
 
 Or all tasks in a specific plan:
 
 ```powershell
-planner_cli.exe list --Planner <plan id> --Task
+planner_cli list --Planner <plan id> --Task
 ```
 
 This doesnt work "the other way around" unfortunately. (what i mean ist `--Planner --Task <task id>` wont work)
@@ -209,7 +219,7 @@ end;
 To get a list of fields you can fill, look at `help` of the cli.
 
 ```powershell
-planner_cli.exe create --help
+planner_cli create --help
 ```
 
 #### 2.3.4 Updating
@@ -234,7 +244,7 @@ end;
 To get a list of fields you can fill, look at `help` of the cli.
 
 ```powershell
-planner_cli.exe update --help
+planner_cli update --help
 ```
 
 To update categorys of a task, add those you want to change to the `Categorys` array of the task and then update the task.

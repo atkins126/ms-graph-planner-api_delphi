@@ -39,6 +39,7 @@ begin
     + 'Options:' + sLineBreak
     + '  -h, --Help' + sLineBreak
     + '  -q, --Quiet' + sLineBreak
+    + '  -d, --Details' + sLineBreak
     + '  --Fields "<field>=<value>,<field>=<value>"' + sLineBreak
     + '  --Debug' + sLineBreak
     + '' + sLineBreak
@@ -80,6 +81,8 @@ begin
     Result := 'Task'
   else if IndexText(param, ['q', 'Quiet']) <> -1 then
     Result := 'Quiet'
+  else if IndexText(param, ['d', 'Details']) <> -1 then
+    Result := 'Details'
   else if IndexText(param, ['h', 'Help', 'help', '?']) <> -1 then
     Result := 'Help'
   else
